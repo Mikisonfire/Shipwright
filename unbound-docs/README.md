@@ -65,6 +65,8 @@ plays; a two-line delta mod merges over the converted base (`examples/hyrule-fie
 
 ## Known remaining limits
 
+Defects (as opposed to limits) found but not yet fixed are in [`known-issues.md`](./known-issues.md).
+
 The modder-facing list — what a tool must still validate — is SPEC §9. Engine-internal notes
 behind them and likely next targets:
 

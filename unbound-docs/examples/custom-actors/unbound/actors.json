@@ -43,7 +43,7 @@
   },
   "example/glass_pane": {
     "name": "Example: translucent display list",
-    "model": { "displayList": "objects/object_jya_obj/gBigMirror4DL", "scale": 0.02, "translucent": true }
+    "model": { "displayList": "objects/object_jya_obj/gBigMirror4DL", "scale": 0.1, "yOffset": 471, "translucent": true }
   },
   "En_Kanban": {
     "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL" }

@@ -200,7 +200,9 @@ name only.
 > form names an actor type, either one registered in `unbound/actors.json` or an actor the game
 > already knows by name. An entry whose name is not known is skipped with an error, and the rest
 > of the list loads. Names are accepted in room `actors` only; spawns and transition actors keep
-> integer ids.
+> integer ids. A name changes nothing else about the actor: a vanilla actor placed by name still
+> needs its object in the room's `objects`, as when it is placed by number. A declared type needs
+> none.
 
 (Before this change such a string had the wrong type and read as missing — id 0, the player
 actor. No valid document changes meaning.)
@@ -392,7 +394,8 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 - Author `unbound/actors.json` entries: type name, model (an animated skeleton or a static
   display list), collision, talk, look.
 - Place declared types (and named fork actors) by name in the actor palette, writing
-  `"id": "<name>"`. This replaces typing raw ids.
+  `"id": "<name>"`. This replaces typing raw ids. A vanilla actor placed by name still needs its
+  object in the room's `objects`, exactly as when placed by number.
 - Preview: draw the skeleton in the chosen animation frame, or the display list.
 - For `look`: let the user pick the head limb from the skeleton's limb list, numbered from 1 at
   the root (vanilla limb-draw numbering), since the index differs between rigs.

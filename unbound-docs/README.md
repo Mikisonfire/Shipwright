@@ -17,6 +17,8 @@ and other enhancements that assume the vanilla tables may break; that is accepte
   this directory is normative.
 - The other files are *how* and *why*: they explain the engine changes behind each part of the
   spec and may change freely.
+- [`actors.md`](./actors.md) is a **proposal, not implemented**: custom actor types declared in
+  data and placed by name.
 
 ## Goals
 

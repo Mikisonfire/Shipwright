@@ -137,6 +137,21 @@ both, or neither, **rejects the entry**.
 Asset paths are resolved when an actor of the type spawns, not when the registry loads. A path
 that does not resolve stops that actor from spawning, with an error; it does not reject the type.
 
+A path may name a vanilla asset or one the mod ships itself, at any path in its archive (§1.4).
+Mod-supplied display lists, vertex arrays, textures, skeletons and animations are ordinary SoH
+resources of the same types vanilla objects use, as room meshes already are (§4.3). Writers
+should keep them under a path of their own (`objects/<mod>/…`) and never under `alt/`. For a
+model the mod ships:
+
+- Vertices are in **model space** around the actor's origin, and `scale` converts them to world
+  units. A room mesh is exported in world units, so the same geometry placed as an actor needs
+  `scale` 1, or coordinates exported larger to match a smaller `scale`.
+- The display list sets up its own render state (render mode, combiner, geometry mode, textures),
+  as a room mesh's does. The actor sets only the matrix and the segments in `segments`.
+- Whether the model is lit is the display list's choice: with normals and lighting enabled it is
+  lit like vanilla actors; with vertex colours and lighting off it is shaded like room geometry,
+  which matches the scene around it.
+
 **`collision`** — a solid cylinder the player cannot pass through.
 
 | Key | Type / meaning |

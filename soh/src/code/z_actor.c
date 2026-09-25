@@ -3366,7 +3366,12 @@ Actor* Actor_Spawn(ActorContext* actorCtx, PlayState* play, s16 actorId, f32 pos
 
     ActorDBEntry* dbEntry = ActorDB_Retrieve(actorId);
 
-    assert(dbEntry->valid);
+    // SOH [Unbound] An id no actor answers to (a scene's typo, a gap below the custom actor types) spawns nothing.
+    // This was only an assert, which release builds drop: they then allocated a zero-size actor and wrote past it.
+    if (!dbEntry->valid) {
+        LUSLOG_ERROR("Actor_Spawn: no actor has id %#x", (u16)actorId);
+        return NULL;
+    }
 
     if (HREG(20) != 0) {
         // "Actor class addition [%d:%s]"

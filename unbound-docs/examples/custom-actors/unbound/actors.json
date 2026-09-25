@@ -1,0 +1,43 @@
+{
+  "example/carpenter": {
+    "name": "Example: talking carpenter",
+    "model": {
+      "skeleton": "objects/object_toryo/object_toryo_Skel_007150",
+      "animation": "objects/object_toryo/object_toryo_Anim_000E50",
+      "shadow": 42
+    },
+    "collision": { "radius": 18, "height": 63 },
+    "talk": { "message": "0xA001" },
+    "look": { "limb": 15 }
+  },
+  "example/carpenter_statue": {
+    "name": "Example: carpenter in bind pose",
+    "model": { "skeleton": "objects/object_toryo/object_toryo_Skel_007150" },
+    "collision": { "radius": 18, "height": 63 }
+  },
+  "example/malon_pose": {
+    "name": "Example: Malon held on one frame",
+    "model": {
+      "skeleton": "objects/object_ma1/gMalonChildSkel",
+      "animation": "objects/object_ma1/gMalonChildSingAnim",
+      "frame": 10,
+      "segments": {
+        "8": "objects/object_ma1/gMalonChildEyeOpenTex",
+        "9": "objects/object_ma1/gMalonChildSmilingMouthTex"
+      },
+      "shadow": 20
+    },
+    "collision": { "radius": 20, "height": 50 },
+    "talk": {}
+  },
+  "example/talking_pot": {
+    "name": "Example: a pot that reads like a sign",
+    "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL", "scale": 0.15 },
+    "collision": { "radius": 12, "height": 30 },
+    "talk": {}
+  },
+  "example/uses_a_later_key": {
+    "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL" },
+    "base": "Obj_Tsubo"
+  }
+}

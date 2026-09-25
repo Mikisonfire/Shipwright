@@ -9,6 +9,7 @@
 #include "UnboundJson.h"
 #include "UnboundSchema.h"
 #include "soh/unbound/SceneDB.h"
+#include "soh/ActorDB.h"
 
 #include <libultraship/libultraship.h>
 #include <spdlog/spdlog.h>
@@ -637,11 +638,34 @@ Command BuildMaterialAnims(CommandBuilder& b, const Json& list) {
 
 // ---- keyed list --------------------------------------------------------------------------------
 
+// SOH [Unbound] A room actor's `id` may be an actor's name instead of its number (unbound-docs/actors.md): a custom
+// actor type's, or any name ActorDB knows. False, logged, when it names no actor. Spawns and transition actors keep
+// numbers, which is why this lives here and not in ReadActor.
+bool ResolveActorName(const CommandBuilder& b, const std::string& key, const Json& a, ActorEntry& e) {
+    auto it = a.find(K::kId);
+    int64_t number = 0;
+    if (it == a.end() || !it->is_string() || SOH::Unbound::ParseIntString(it->get<std::string>(), number)) {
+        return true; // a number: ReadActor already read it
+    }
+    const std::string name = it->get<std::string>();
+    int id = ActorDB::Instance->RetrieveId(name);
+    if (id < 0) {
+        SPDLOG_ERROR("[Unbound] {}: actor '{}' names no known actor '{}'; it is skipped", b.docPath, key, name);
+        return false;
+    }
+    e.id = (s16)id;
+    return true;
+}
+
 Command BuildActorList(CommandBuilder& b, const Json& list) {
     auto cmd = b.Make<SetActorList>(SceneCommandID::SetActorList);
     for (const auto& k : ListKeys(list)) { // keyed: $order then numeric-first key order
-        if (list[k].is_object()) {
-            cmd->actorList.push_back(ReadActor(list[k]));
+        if (!list[k].is_object()) {
+            continue;
+        }
+        ActorEntry e = ReadActor(list[k]);
+        if (ResolveActorName(b, k, list[k], e)) {
+            cmd->actorList.push_back(e);
         }
     }
     cmd->numActors = (uint32_t)cmd->actorList.size();

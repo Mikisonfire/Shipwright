@@ -253,6 +253,27 @@ inline constexpr const char* kLayers = "layers";
 inline constexpr const char* kHorse = "horse";
 inline constexpr const char* kAngle = "angle";
 
+// Actor registry (unbound-docs/actors.md): unbound/actors.json. `kName`, `kCollision`, `kRadius`, `kHeight` and
+// `kSpeed` are shared with the entries above.
+inline constexpr const char* kActorRegistryPath = "unbound/actors.json";
+inline constexpr const char* kModel = "model";
+inline constexpr const char* kTalk = "talk";
+inline constexpr const char* kLook = "look";
+inline constexpr const char* kSkeleton = "skeleton";
+inline constexpr const char* kAnimation = "animation";
+inline constexpr const char* kFrame = "frame";
+inline constexpr const char* kDisplayList = "displayList";
+inline constexpr const char* kTranslucent = "translucent";
+inline constexpr const char* kScale = "scale";
+inline constexpr const char* kYOffset = "yOffset";
+inline constexpr const char* kSegments = "segments";
+inline constexpr const char* kShadow = "shadow";
+inline constexpr const char* kYShift = "yShift";
+inline constexpr const char* kMessage = "message";
+inline constexpr const char* kRange = "range";
+inline constexpr const char* kLimb = "limb";
+inline constexpr const char* kPivot = "pivot";
+
 // Manifest (§6)
 inline constexpr const char* kManifestPath = "unbound.json";
 inline constexpr const char* kFormatName = "format";

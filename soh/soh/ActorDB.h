@@ -58,6 +58,9 @@ class ActorDB {
         ActorDBEntry entry;
     };
     Entry& AddEntry(const ActorDBInit& init);
+    // SOH [Unbound] Registers at a caller-chosen id instead of the next free one (custom actor types are numbered
+    // from their own base; unbound-docs/actors.md). The id must be unused.
+    Entry& AddEntry(const ActorDBInit& init, size_t id);
 
     Entry& RetrieveEntry(const int id);
     int RetrieveId(const std::string& name);

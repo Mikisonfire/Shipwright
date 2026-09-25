@@ -1,5 +1,6 @@
 #include "OTRGlobals.h"
 #include <cstdlib>
+#include "soh/unbound/ActorRegistry.h"
 #include "soh/unbound/UnboundExporter.h"
 #include "soh/z_message_OTR.h"
 #include "soh/unbound/UnboundFactories.h"
@@ -1729,6 +1730,7 @@ extern "C" void InitOTR(int argc, char* argv[]) {
 
     InitMods();
     ActorDB::AddBuiltInCustomActors();
+    SOH::Unbound::LoadCustomActors(); // SOH [Unbound] after the built-ins, so mod types never shift their ids
     // #region SOH [Randomizer] TODO: Remove these and refactor spoiler file handling for randomizer
     CVarClear(CVAR_GENERAL("RandomizerNewFileDropped"));
     CVarClear(CVAR_GENERAL("RandomizerDroppedFile"));

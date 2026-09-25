@@ -1,6 +1,7 @@
 # Unbound: custom actors
 
-**Status: implemented on branch `unbound-custom-actors`, not yet play-tested.** The test fixture is
+**Status: implemented on branch `unbound-custom-actors`; play-tested 2026-09-25** (every item of the
+verification plan, in game and through a Prelude export). The test fixture is
 [`examples/custom-actors`](./examples/custom-actors/README.md). The "Proposed SPEC text" section
 moves into [`SPEC.md`](./SPEC.md) when the branch is merged, and this file becomes the how-doc,
 like the others in this directory.

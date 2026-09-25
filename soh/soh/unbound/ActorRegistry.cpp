@@ -104,7 +104,12 @@ bool ReadModel(const std::string& key, const Json& def, DeclaredActorType& type)
         return false;
     }
     if (!type.skeleton.empty()) {
+        // Required: an OoT skeleton has no usable rest pose. With every joint angle zero it folds up.
         type.animation = OtrPath(PathField(model, K::kAnimation));
+        if (type.animation.empty()) {
+            SPDLOG_ERROR("[Unbound] actor type '{}': a \"{}\" needs an \"{}\"", key, K::kSkeleton, K::kAnimation);
+            return false;
+        }
     }
     type.holdFrame = OptionalNumber(model, K::kFrame, type.frame);
     type.speed = (f32)NumberField(model, K::kSpeed, 1.0);

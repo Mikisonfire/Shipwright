@@ -48,8 +48,8 @@ listed at the end so the format leaves room for them now.
 
 A type's model is one of two kinds:
 
-- **Animated:** a skeleton, posed by an animation (looping, or held on one frame) or left in its
-  bind pose. NPCs, animals, anything with limbs.
+- **Animated:** a skeleton, posed by an animation, looping or held on one frame. NPCs, animals,
+  anything with limbs.
 - **Static:** a single display list. Trees, rocks, lanterns, fences, signs, statues: most of the
   scenery a modder wants to add.
 
@@ -127,7 +127,7 @@ both, or neither, **rejects the entry**.
 | Key | Type / meaning |
 |---|---|
 | `skeleton` | path of a skeleton resource, normal or flex. A curve skeleton is not supported: the actor does not spawn and an error is logged. |
-| `animation` | path of an animation for `skeleton`, with the skeleton's limb count. Absent, the skeleton is drawn in its bind pose. Ignored with `displayList`. |
+| `animation` | path of an animation for `skeleton`, with the skeleton's limb count. Required with `skeleton`: absent **rejects the entry**, because an OoT skeleton has no usable rest pose (with every joint angle zero it folds up). For a still model, hold one frame with `frame`. Ignored with `displayList`. |
 | `frame` | number: when present, the animation is held on this frame (a pose); absent, the animation loops |
 | `speed` | number: playback rate for a looping animation; default 1 |
 | `displayList` | path of a display list: the whole model, drawn as it is |
@@ -285,9 +285,7 @@ Destroy: free the skeleton and the collider, if they were set up
   `SkelAnime_InitFlex` or `SkelAnime_Init` at runtime and lets it
   allocate the joint tables (`SkelAnime_Free` in destroy). Looping is
   `Animation_Change(..., ANIMMODE_LOOP, ...)` at `speed`. A pose is the same call with speed 0,
-  starting and ending on `frame`. With no animation the driver zeroes the joint tables itself,
-  which is the bind pose: `SkelAnime_Init` allocates them with `ZELDA_ARENA_MALLOC` and only fills
-  them when given an animation, so they would otherwise hold garbage. `ActorShape_Init` applies
+  starting and ending on `frame`. `ActorShape_Init` applies
   `yOffset` and the circle shadow.
 - **Draw pass.** A static model is `Gfx_DrawDListOpa` or, with `translucent`, `Gfx_DrawDListXlu`.
   An animated model is `SkelAnime_DrawOpa`/`SkelAnime_DrawFlexOpa`, or with `translucent` the
@@ -388,7 +386,7 @@ an older build rejects a type it cannot run instead of placing an actor that doe
   display list), collision, talk, look.
 - Place declared types (and named fork actors) by name in the actor palette, writing
   `"id": "<name>"`. This replaces typing raw ids.
-- Preview: draw the skeleton in the chosen animation frame (or its bind pose), or the display list.
+- Preview: draw the skeleton in the chosen animation frame, or the display list.
 - For `look`: let the user pick the head limb from the skeleton's limb list, numbered from 1 at
   the root (vanilla limb-draw numbering), since the index differs between rigs.
 - Validate: skeleton is normal or flex, animation limb count matches the skeleton, the talk
@@ -400,7 +398,7 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 1. A mod declaring one skeleton type and one display-list type loads; both appear in the actor
    viewer under their names, with ids from 0x1000.
 2. Placed by name in a custom room: the model draws in the right pose, a looping animation loops,
-   a skeleton with no animation stands in its bind pose, and a `translucent` model blends.
+   and a `translucent` model blends.
 3. Collision blocks the player; a type without `collision` does not.
 4. Talking: Z-target, talk, the textbox shows the type's message; a second placement with
    `params` shows its own; a chained multi-message conversation plays through and returns to idle.
@@ -409,6 +407,7 @@ an older build rejects a type it cannot run instead of placing an actor that doe
    over the head.
 6. Errors: unknown name in a room (entry skipped, room loads); duplicate of a vanilla name
    (entry rejected); a bad skeleton path (that actor does not spawn, the rest of the room does);
-   an unknown key such as `base` (entry rejected); `look` on a static model (entry rejected).
+   an unknown key such as `base` (entry rejected); `look` on a static model (entry rejected); a
+   skeleton with no animation (entry rejected).
 7. No-mod parity: with no `unbound/actors.json`, ActorDB, `En_Partner`'s id and vanilla rooms are
    unchanged.

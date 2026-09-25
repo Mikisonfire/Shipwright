@@ -14,7 +14,7 @@ struct DeclaredActorType {
     // Model: exactly one of `skeleton` or `displayList` is set. Every path carries the "__OTR__" prefix the game's
     // asset loaders look for, so it can be passed wherever vanilla code passes an asset symbol.
     std::string skeleton;
-    std::string animation;  // with a skeleton: empty = bind pose
+    std::string animation;  // required with a skeleton
     bool holdFrame = false; // true = hold the animation on `frame`; false = loop it at `speed`
     f32 frame = 0.0f;
     f32 speed = 1.0f;

@@ -3,7 +3,6 @@
 // call the same functions.
 #include "DeclaredActor.h"
 
-#include <cstring>
 #include <libultraship/libultraship.h>
 #include <spdlog/spdlog.h>
 
@@ -131,20 +130,8 @@ void InitShape(DeclaredActor* self) {
     Actor_SetScale(&self->actor, type.scale);
 }
 
-// With no animation the joint tables are zeroed: that is the bind pose. SkelAnime_Init allocates them without
-// clearing and only fills them from an animation.
-void SetBindPose(DeclaredActor* self) {
-    size_t size = self->skelAnime.limbCount * sizeof(Vec3s);
-    memset(self->skelAnime.jointTable, 0, size);
-    memset(self->skelAnime.morphTable, 0, size);
-}
-
 bool InitAnimation(DeclaredActor* self) {
     const DeclaredActorType& type = *self->type;
-    if (type.animation.empty()) {
-        SetBindPose(self);
-        return true;
-    }
     if (!IsAnimation(type.animation)) {
         return Fail(self, "no animation at", type.animation);
     }

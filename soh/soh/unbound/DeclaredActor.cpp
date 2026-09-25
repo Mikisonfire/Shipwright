@@ -3,6 +3,7 @@
 // call the same functions.
 #include "DeclaredActor.h"
 
+#include <algorithm>
 #include <libultraship/libultraship.h>
 #include <spdlog/spdlog.h>
 
@@ -60,6 +61,8 @@ ColliderCylinderInit sCylinderInit = {
 constexpr size_t kOtrPrefixLength = sizeof("__OTR__") - 1;
 constexpr s8 kTalkTargetMode = 6;      // 100-unit targeting range, as vanilla NPCs
 constexpr s16 kLookTrackingPreset = 0; // sNpcTrackingPresets: 60 degrees of head yaw
+constexpr u8 kSegmentMin = 8;          // the segments a type may bind (13 holds flex-skeleton matrices)
+constexpr u8 kSegmentMax = 12;
 
 // ---- assets -------------------------------------------------------------------------------------------------------
 
@@ -287,7 +290,15 @@ void RecordHeadFocus(DeclaredActor* self, s32 limbIndex) {
     Matrix_MultVec3f(&pivot, &self->actor.focus.pos);
 }
 
+void HideLimb(DeclaredActor* self, s32 limbIndex, Gfx** dList) {
+    const std::vector<s32>& hidden = self->type->hideLimbs;
+    if (std::find(hidden.begin(), hidden.end(), limbIndex) != hidden.end()) {
+        *dList = NULL; // children still draw
+    }
+}
+
 s32 OverrideLimbOpa(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* arg) {
+    HideLimb((DeclaredActor*)arg, limbIndex, dList);
     TurnHead((DeclaredActor*)arg, limbIndex, pos, rot);
     return false;
 }
@@ -297,6 +308,7 @@ void PostLimbOpa(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* 
 }
 
 s32 OverrideLimbXlu(PlayState* play, s32 limbIndex, Gfx** dList, Vec3f* pos, Vec3s* rot, void* arg, Gfx** gfx) {
+    HideLimb((DeclaredActor*)arg, limbIndex, dList);
     TurnHead((DeclaredActor*)arg, limbIndex, pos, rot);
     return false;
 }
@@ -305,10 +317,18 @@ void PostLimbXlu(PlayState* play, s32 limbIndex, Gfx** dList, Vec3s* rot, void* 
     RecordHeadFocus((DeclaredActor*)arg, limbIndex);
 }
 
+// The draw state vanilla character draws set before their skeleton. Every segment 8-12 the type does not name gets
+// an empty display list: character models call one of them to set their render mode (vanilla binds
+// &D_80116280[2], an end-of-list, there), and an unbound segment would be whatever the last actor left in it. The
+// env colour is opaque black, which models that fade through env alpha read as fully visible.
 Gfx* BindSegments(const DeclaredActorType& type, Gfx* gfx) {
+    for (u8 segment = kSegmentMin; segment <= kSegmentMax; segment++) {
+        gSPSegment(gfx++, segment, (uintptr_t)gEmptyDL);
+    }
     for (const auto& [segment, texture] : type.segments) {
         gSPSegment(gfx++, segment, (uintptr_t)texture.c_str());
     }
+    gDPSetEnvColor(gfx++, 0, 0, 0, 255);
     return gfx;
 }
 

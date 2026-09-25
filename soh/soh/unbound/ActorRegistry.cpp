@@ -89,6 +89,19 @@ void ReadSegments(const std::string& key, const Json& segments, DeclaredActorTyp
     }
 }
 
+// Limbs whose own display list is not drawn: vanilla actors hide spare hands and props their code swaps in.
+void ReadHideLimbs(const std::string& key, const Json& limbs, DeclaredActorType& type) {
+    for (const Json& limb : limbs) {
+        int64_t index = ToInt(limb, 0);
+        if (index < 1) {
+            SPDLOG_ERROR("[Unbound] actor type '{}': hideLimbs entry {} ignored (limbs are numbered from 1)", key,
+                         limb.dump());
+            continue;
+        }
+        type.hideLimbs.push_back((s32)index);
+    }
+}
+
 bool ReadModel(const std::string& key, const Json& def, DeclaredActorType& type) {
     auto it = def.find(K::kModel);
     if (it == def.end() || !it->is_object()) {
@@ -118,6 +131,7 @@ bool ReadModel(const std::string& key, const Json& def, DeclaredActorType& type)
     type.yOffset = (f32)NumberField(model, K::kYOffset);
     type.shadow = (f32)NumberField(model, K::kShadow);
     ReadSegments(key, Sub(model, K::kSegments), type);
+    ReadHideLimbs(key, SubArray(model, K::kHideLimbs), type);
     return true;
 }
 

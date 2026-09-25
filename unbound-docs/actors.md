@@ -134,7 +134,8 @@ both, or neither, **rejects the entry**.
 | `translucent` | boolean: draw in the translucent pass instead of the opaque one, for models with real transparency (glass, ghosts, water). Default false. Cut-out transparency such as leaves and fences does not need it: the display list's own render mode handles that in the opaque pass. |
 | `scale` | number; default 0.01 (the scale of most vanilla NPCs) |
 | `yOffset` | number: model-space vertical offset, applied before scale; default 0 |
-| `segments` | object: key a segment number 8–12 as a §2 integer string, value a texture path, bound before the model draws (NPC eye and mouth textures). Any other key is ignored with an error. |
+| `segments` | object: key a segment number 8–12 as a §2 integer string, value a texture path, bound before the model draws (NPC eye and mouth textures). Any other key is ignored with an error. A segment 8–12 the type does not name is bound to an empty display list, which is what vanilla binds on the segment many character models call to set their render mode. The environment colour is opaque black while the model draws. |
+| `hideLimbs` | array of integers: limbs, numbered as `look.limb` is, whose own mesh is not drawn; their child limbs still draw. Vanilla character code hides spare hands and props it swaps in (Malon's limbs 2 and 5, child Zelda's 3–6). Entries below 1 are ignored with an error. |
 | `shadow` | number: radius of a round ground shadow; default 0 = none |
 
 Asset paths are resolved when an actor of the type spawns, not when the registry loads. A path
@@ -291,9 +292,15 @@ Destroy: free the skeleton and the collider, if they were set up
   An animated model is `SkelAnime_DrawOpa`/`SkelAnime_DrawFlexOpa`, or with `translucent` the
   `Gfx*`-returning `SkelAnime_Draw`/`SkelAnime_DrawFlex` writing into `POLY_XLU_DISP`, as vanilla
   translucent actors do. `BindSegments` writes to the same pass.
-- **Segments.** `BindSegments` issues `gSPSegment` for each entry, exactly as vanilla NPC draw code
-  does for eyes and mouths. Segment 13 is excluded because flex skeletons use it for their
-  matrices.
+- **Segments.** `BindSegments` first binds every segment 8–12 to `gEmptyDL`, then issues
+  `gSPSegment` for each entry, exactly as vanilla NPC draw code does for eyes and mouths, and sets
+  the env colour to opaque black. Character models such as adult Ruto's, adult Zelda's and
+  Darunia's call a segment to set their render mode; vanilla binds `&D_80116280[2]` there, which
+  is an end-of-list (entries 0–1 are the translucent mode used while fading). Without a default
+  the segment would hold whatever the previous actor bound. Segment 13 is excluded because flex
+  skeletons use it for their matrices.
+- **Hidden limbs.** The limb-draw callback clears the limb's display list; the limb's transform
+  still applies, so its children draw where they should.
 - **Collision.** One `ColliderCylinder`, OC only (`OC1_ON | OC1_TYPE_ALL`, `OC2_TYPE_2`),
   `colChkInfo.mass = MASS_IMMOVABLE`, submitted each frame with `CollisionCheck_SetOC`. No
   gravity or floor check: the actor stays exactly where it was placed.

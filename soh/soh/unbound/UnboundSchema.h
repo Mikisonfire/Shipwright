@@ -267,6 +267,7 @@ inline constexpr const char* kTranslucent = "translucent";
 inline constexpr const char* kScale = "scale";
 inline constexpr const char* kYOffset = "yOffset";
 inline constexpr const char* kSegments = "segments";
+inline constexpr const char* kHideLimbs = "hideLimbs";
 inline constexpr const char* kShadow = "shadow";
 inline constexpr const char* kYShift = "yShift";
 inline constexpr const char* kMessage = "message";

@@ -24,6 +24,7 @@ struct DeclaredActorType {
     f32 yOffset = 0.0f;
     f32 shadow = 0.0f;                                // radius of a round shadow; 0 = none
     std::vector<std::pair<u8, std::string>> segments; // segment 8-12 -> texture path
+    std::vector<s32> hideLimbs;                       // limb-draw numbering (root = 1)
 
     // Collision: a solid cylinder, present when radius and height are both positive.
     s16 radius = 0;

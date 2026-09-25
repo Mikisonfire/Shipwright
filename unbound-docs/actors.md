@@ -37,10 +37,21 @@ listed at the end so the format leaves room for them now.
    `params` says how this placement is set up. For the first version `params` has one meaning (the
    message id, below).
 4. **First version: declared types only.** One C driver runs every declared type, reading the
-   type's settings from the registry: a model, a collision cylinder, and talking. Types that
+   type's settings from the registry: a model (animated or static), a collision cylinder,
+   talking, and head tracking. Types that
    extend a vanilla actor (`base`) are a later phase; nothing in this version depends on them.
 
 ## What a modder writes
+
+A type's model is one of two kinds:
+
+- **Animated:** a skeleton, posed by an animation (looping, or held on one frame) or left in its
+  bind pose. NPCs, animals, anything with limbs.
+- **Static:** a single display list. Trees, rocks, lanterns, fences, signs, statues: most of the
+  scenery a modder wants to add.
+
+Every behavior works with either kind, so a static signpost can talk, and a static statue can
+block the player. Only head tracking (`look`) needs a skeleton, because it turns a limb.
 
 A registry entry declares the type:
 
@@ -56,14 +67,26 @@ A registry entry declares the type:
       "shadow": 20
     },
     "collision": { "radius": 20, "height": 50 },
-    "talk": { "message": "0x9001" }
+    "talk": { "message": "0x9001" },
+    "look": { "limb": 15, "pivot": 1200 }
   },
-  "mymod/stone_lantern": {
-    "model": { "displayList": "objects/mymod_props/gStoneLanternDL", "scale": 0.1 },
-    "collision": { "radius": 15, "height": 60 }
+  "mymod/pine_tree": {
+    "model": { "displayList": "objects/mymod_props/gPineTreeDL", "scale": 0.1, "shadow": 40 },
+    "collision": { "radius": 25, "height": 200 }
+  },
+  "mymod/signpost": {
+    "model": { "displayList": "objects/mymod_props/gSignpostDL", "scale": 0.1 },
+    "collision": { "radius": 12, "height": 40 },
+    "talk": {}
+  },
+  "mymod/ghost_lantern": {
+    "model": { "displayList": "objects/mymod_props/gGhostLanternDL", "scale": 0.1,
+               "translucent": true }
   }
 }
 ```
+
+The signpost has no default message, so each placement sets its own text through `params`.
 
 A room places it by name. Two placements of one type can say different things through `params`:
 
@@ -92,17 +115,20 @@ One layer-merged document (§3), keyed by actor type name. Like §7, it carries 
 | `model` | yes | object (below). An entry without one is **rejected**. |
 | `collision` | no | object (below); absent = the actor has no collision and can be walked through |
 | `talk` | no | object (below); absent = the actor cannot be targeted or talked to |
+| `look` | no | object (below): the head turns to follow the player. Needs a `model.skeleton`; on a static model it **rejects the entry**. |
 | any other key | — | **rejects the entry**. Keys this version does not define are reserved for later versions (`base`, `params`, `script`); a mod that needs one must also declare `requires.formatVersion` (§6). |
 
-**`model`** — exactly one of `skeleton` or `displayList`; both, or neither, **rejects the entry**.
+**`model`** — exactly one of `skeleton` (an animated model) or `displayList` (a static model);
+both, or neither, **rejects the entry**.
 
 | Key | Type / meaning |
 |---|---|
 | `skeleton` | path of a skeleton resource, normal or flex. A curve skeleton is not supported: the actor does not spawn and an error is logged. |
-| `animation` | path of an animation for `skeleton`; required with it (absent **rejects the entry**). Should have the skeleton's limb count. |
+| `animation` | path of an animation for `skeleton`, with the skeleton's limb count. Absent, the skeleton is drawn in its bind pose. Ignored with `displayList`. |
 | `frame` | number: when present, the animation is held on this frame (a pose); absent, the animation loops |
 | `speed` | number: playback rate for a looping animation; default 1 |
-| `displayList` | path of a display list drawn opaque |
+| `displayList` | path of a display list: the whole model, drawn as it is |
+| `translucent` | boolean: draw in the translucent pass instead of the opaque one, for models with real transparency (glass, ghosts, water). Default false. Cut-out transparency such as leaves and fences does not need it: the display list's own render mode handles that in the opaque pass. |
 | `scale` | number; default 0.01 (the scale of most vanilla NPCs) |
 | `yOffset` | number: model-space vertical offset, applied before scale; default 0 |
 | `segments` | object: key a segment number 8–12 as a §2 integer string, value a texture path, bound before the model draws (NPC eye and mouth textures). Any other key is ignored with an error. |
@@ -128,6 +154,22 @@ that does not resolve stops that actor from spawning, with an error; it does not
 The message shown is `params` (read as unsigned 16-bit) when it is non-zero and not `0xFFFF`,
 otherwise `talk.message`. When both are zero the actor cannot be talked to. A message that does
 not exist shows whatever the game shows for a missing id, as with any actor.
+
+**`look`** — the head turns toward the player, within the neck's limits, as vanilla NPCs do.
+
+| Key | Type / meaning |
+|---|---|
+| `limb` | integer: index of the head limb in the skeleton. Required: absent, or not a limb of the skeleton, the actor spawns without head tracking and an error is logged. |
+| `pivot` | number: distance along the head limb, in model units, from the limb's origin to the point the head turns about (the neck). Default 0. Vanilla NPC heads use 1 200–1 400. |
+| `range` | number: the head follows the player within this distance, in world units, and while talking; outside it the head returns to rest. Default 200. |
+
+The head turns about the limb's own axes the way vanilla character rigs are built: turning left
+and right about the limb's X axis, and up and down about its Z axis. A skeleton made another way
+turns its head about the wrong axes.
+
+When `look` is present, the actor's focus point (where the targeting arrow sits and the camera
+looks while talking) is its head. Otherwise it is the top of the collision cylinder, or the
+actor's position when it has no collision.
 
 A registered type gets an actor id assigned by the game, in registry order (§3.5). The number
 depends on which mods are mounted and must never be written by a tool; types are addressed by
@@ -197,9 +239,9 @@ Each behavior is its own small function taking the instance and its type, so the
 functions read as a list of steps, and so a script can later call the same functions:
 
 ```
-Init:    ResolveType → InitModel → InitCollision → InitTalk
-Update:  UpdateTalk → UpdateCollision → UpdateAnimation
-Draw:    BindSegments → DrawModel
+Init:    ResolveType → InitModel → InitCollision → InitTalk → InitLook
+Update:  UpdateTalk → UpdateLook → UpdateCollision → UpdateAnimation → UpdateFocus
+Draw:    BindSegments → DrawModel (limb callbacks: TurnHead, RecordHeadFocus)
 Destroy: FreeModel → FreeCollision
 ```
 
@@ -211,8 +253,14 @@ Destroy: FreeModel → FreeCollision
   count, so `InitModel` chooses `SkelAnime_InitFlex` or `SkelAnime_Init` at runtime and lets it
   allocate the joint tables (`SkelAnime_Free` in destroy). Looping is
   `Animation_Change(..., ANIMMODE_LOOP, ...)` at `speed`. A pose is the same call with speed 0,
-  starting and ending on `frame`. A display-list model is `Gfx_DrawDListOpa`. `ActorShape_Init`
-  applies `yOffset` and the circle shadow.
+  starting and ending on `frame`. With no animation the driver zeroes the joint tables itself,
+  which is the bind pose: `SkelAnime_Init` allocates them with `ZELDA_ARENA_MALLOC` and only fills
+  them when given an animation, so they would otherwise hold garbage. `ActorShape_Init` applies
+  `yOffset` and the circle shadow.
+- **Draw pass.** A static model is `Gfx_DrawDListOpa` or, with `translucent`, `Gfx_DrawDListXlu`.
+  An animated model is `SkelAnime_DrawOpa`/`SkelAnime_DrawFlexOpa`, or with `translucent` the
+  `Gfx*`-returning `SkelAnime_Draw`/`SkelAnime_DrawFlex` writing into `POLY_XLU_DISP`, as vanilla
+  translucent actors do. `BindSegments` writes to the same pass.
 - **Segments.** `BindSegments` issues `gSPSegment` for each entry, exactly as vanilla NPC draw code
   does for eyes and mouths. Segment 13 is excluded because flex skeletons use it for their
   matrices.
@@ -225,6 +273,14 @@ Destroy: FreeModel → FreeCollision
   Multi-box text and follow-up messages chained by control codes need nothing extra. A choice
   box closes the conversation whatever the answer, because there is no behavior to branch to yet.
   That limit is intentional.
+- **Look.** The same pattern as vanilla NPCs, which all hard-code it per actor (`EnKo`, `EnMa1`,
+  `EnToryo`, … with limb 15 and a pivot of 1 200–1 400). `UpdateLook` calls `Npc_TrackPoint` with
+  the player as target while the player is within `range` or talking, and with tracking off
+  otherwise, so the head eases back to rest. The head's limb-draw callback translates by `pivot`
+  along X, applies `headRot.y` about X and `headRot.x` about Z, and translates back — the code
+  `EnMa1_OverrideLimbDraw` uses. The post-limb-draw callback records the head's world position,
+  and `UpdateFocus` copies it to `actor->focus.pos`. Torso tracking is left out: vanilla rigs
+  disagree on the sign of the torso turn, so it would need a per-rig setting.
 
 ### To audit before merging
 
@@ -244,11 +300,14 @@ Destroy: FreeModel → FreeCollision
 Recorded so the format leaves room for them. The unknown-key rule above is what keeps that room:
 an older build rejects a type it cannot run instead of placing an actor that does nothing.
 
-1. **Head tracking while talking.** An optional `talk.headLimb` (limb index), using
-   `Npc_TrackPoint`. A talking NPC that stares straight ahead looks wrong, so this is first in
-   line. See the first open question.
-2. **More built-in behaviors:** follow a path (scene `paths`), switch animation while talking,
-   translucent (XLU) models.
+1. **More built-in behaviors:** follow a path (scene `paths`), switch animation while talking,
+   blinking (a list of eye textures cycled on a segment), torso tracking, `look` axes for rigs
+   built unlike vanilla's.
+2. **Mesh collision for static models.** A cylinder is enough for trees, signs and statues, but a
+   rock the player can stand on, a bridge or a platform needs its model's shape as collision:
+   `collision.mesh` naming a collision resource, registered as a dynamic collision actor
+   (`DynaPolyActor`, the way vanilla's movable blocks and platforms work). Prelude would have to
+   export a collision resource per model.
 3. **Named params.** A type declares named fields packed into `params`
    (`"params": { "message": { "bits": "0-15" } }`) and Prelude shows a form field for each. Scripts
    will need per-placement arguments; this is how they get them without a separate property
@@ -272,23 +331,23 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 
 ## Open questions
 
-1. **Head tracking in v1?** It is a head-limb index and a few lines, and it makes talking NPCs
-   look finished. Recommendation: include it as optional `talk.headLimb`.
-2. **`params` for a type that does not talk.** v1 ignores it. Fine until named params exist.
-3. **Vanilla names in `id`.** The proposed text accepts any name ActorDB knows, including vanilla
+1. **`params` for a type that does not talk.** v1 ignores it. Fine until named params exist.
+2. **Vanilla names in `id`.** The proposed text accepts any name ActorDB knows, including vanilla
    (`"En_Kanban"`). That reads better, and it is how fork actors get placed by name, but it means
    the converter could write names instead of numbers. Recommendation: accept names, keep the
    converter writing numbers.
-4. **Culling.** Declared actors get the default culling volume, so a very large model can vanish
+3. **Culling.** Declared actors get the default culling volume, so a very large model can vanish
    at the screen edge. Add a `model.cullRadius` if it shows up in practice.
 
 ## What Prelude needs
 
-- Author `unbound/actors.json` entries: type name, model (skeleton + animation or display list),
-  collision, talk.
+- Author `unbound/actors.json` entries: type name, model (an animated skeleton or a static
+  display list), collision, talk, look.
 - Place declared types (and named fork actors) by name in the actor palette, writing
   `"id": "<name>"`. This replaces typing raw ids.
-- Preview: draw the skeleton in the chosen animation frame, or the display list.
+- Preview: draw the skeleton in the chosen animation frame (or its bind pose), or the display list.
+- For `look`: let the user pick the head limb from the skeleton's limb list, since the index
+  differs between rigs, and preview the pivot.
 - Validate: skeleton is normal or flex, animation limb count matches the skeleton, the talk
   message exists in the mod's text, `params` for a talking type is a message id.
 - Record the change in [`prelude-handoff.md`](./prelude-handoff.md) when it lands.
@@ -297,13 +356,16 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 
 1. A mod declaring one skeleton type and one display-list type loads; both appear in the actor
    viewer under their names, with ids from 0x1000.
-2. Placed by name in a custom room: the model draws in the right pose, and a looping animation
-   loops.
+2. Placed by name in a custom room: the model draws in the right pose, a looping animation loops,
+   a skeleton with no animation stands in its bind pose, and a `translucent` model blends.
 3. Collision blocks the player; a type without `collision` does not.
 4. Talking: Z-target, talk, the textbox shows the type's message; a second placement with
    `params` shows its own; a chained multi-message conversation plays through and returns to idle.
-5. Errors: unknown name in a room (entry skipped, room loads); duplicate of a vanilla name
+5. Look: a vanilla NPC skeleton with limb 15 and pivot 1 200 turns its head to follow the player
+   within `range` and while talking, returns to rest outside it, and the targeting arrow sits
+   over the head.
+6. Errors: unknown name in a room (entry skipped, room loads); duplicate of a vanilla name
    (entry rejected); a bad skeleton path (that actor does not spawn, the rest of the room does);
-   an unknown key such as `base` (entry rejected).
-6. No-mod parity: with no `unbound/actors.json`, ActorDB, `En_Partner`'s id and vanilla rooms are
+   an unknown key such as `base` (entry rejected); `look` on a static model (entry rejected).
+7. No-mod parity: with no `unbound/actors.json`, ActorDB, `En_Partner`'s id and vanilla rooms are
    unchanged.

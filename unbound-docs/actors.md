@@ -32,7 +32,9 @@ listed at the end so the format leaves room for them now.
 2. **Types are referenced by name.** A scene's actor entry may name its actor
    (`"id": "mymod/old_man"`). The numeric id is assigned at load and never written to a file, the
    same rule scenes and entrances already follow (SPEC §7). This also fixes the fork problem: a
-   fork's C actor registered in ActorDB under a name is placed by that name.
+   fork's C actor registered in ActorDB under a name is placed by that name. Any name ActorDB
+   knows is accepted, spelled as ActorDB spells it, vanilla included (`"En_Kanban"`). The
+   converter keeps writing vanilla actors as numbers.
 3. **Per-placement setup stays in `params`.** As in vanilla, the type says what the actor is and
    `params` says how this placement is set up. For the first version `params` has one meaning (the
    message id, below).
@@ -328,8 +330,9 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 1. **More built-in behaviors:** follow a path (scene `paths`), switch animation while talking,
    blinking (a list of eye textures cycled on a segment), torso tracking, `look` axes for rigs
    built unlike vanilla's.
-2. **Mesh collision for static models.** A cylinder is enough for trees, signs and statues, but a
-   rock the player can stand on, a bridge or a platform needs its model's shape as collision:
+2. **Mesh collision for static models.** Decided against for v1. A cylinder is enough for trees,
+   signs and statues, but a rock the player can stand on, a bridge or a platform needs its model's
+   shape as collision:
    `collision.mesh` naming a collision resource, registered as a dynamic collision actor
    (`DynaPolyActor`, the way vanilla's movable blocks and platforms work). Prelude would have to
    export a collision resource per model.
@@ -357,11 +360,7 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 ## Open questions
 
 1. **`params` for a type that does not talk.** v1 ignores it. Fine until named params exist.
-2. **Vanilla names in `id`.** The proposed text accepts any name ActorDB knows, including vanilla
-   (`"En_Kanban"`). That reads better, and it is how fork actors get placed by name, but it means
-   the converter could write names instead of numbers. Recommendation: accept names, keep the
-   converter writing numbers.
-3. **Culling.** Declared actors get the default culling volume, so a very large model can vanish
+2. **Culling.** Declared actors get the default culling volume, so a very large model can vanish
    at the screen edge. Add a `model.cullRadius` if it shows up in practice.
 
 ## What Prelude needs

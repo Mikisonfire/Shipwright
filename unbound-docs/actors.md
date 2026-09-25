@@ -116,7 +116,7 @@ One layer-merged document (§3), keyed by actor type name. Like §7, it carries 
 | `collision` | no | object (below); absent = the actor has no collision and can be walked through |
 | `talk` | no | object (below); absent = the actor cannot be targeted or talked to |
 | `look` | no | object (below): the head turns to follow the player. Needs a `model.skeleton`; on a static model it **rejects the entry**. |
-| any other key | — | **rejects the entry**. Keys this version does not define are reserved for later versions (`base`, `params`, `script`); a mod that needs one must also declare `requires.formatVersion` (§6). |
+| any other key | — | **rejects the entry**. Keys this version does not define are reserved for later versions (`base`, `params`, `script`). A build that predates a key therefore rejects the type, and its placements are skipped as unknown names, instead of spawning an actor without the behavior. |
 
 **`model`** — exactly one of `skeleton` (an animated model) or `displayList` (a static model);
 both, or neither, **rejects the entry**.
@@ -205,6 +205,16 @@ actor. No valid document changes meaning.)
 
 > Custom actor types: ≤ 28 672 per mounted set (actor ids are signed 16-bit and custom types are
 > numbered from 0x1000).
+
+### Compatibility with older builds
+
+Every Unbound release so far reads a string `id` as the wrong type, which §2 treats as missing:
+id 0, the player actor. A scene that places a custom actor by name therefore spawns an extra Link
+on those builds instead of being refused, and `requires.formatVersion` cannot prevent it, because
+a layer that fails the version check is still merged (§6). Mods that use custom actors need the
+release that adds them. Prelude should say so when it exports one, and the release notes should
+say it too. Builds with this change skip any name they do not know, so the problem does not recur
+for later additions.
 
 ## Engine design
 

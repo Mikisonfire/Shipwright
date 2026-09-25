@@ -40,5 +40,28 @@
   "example/uses_a_later_key": {
     "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL" },
     "base": "Obj_Tsubo"
+  },
+  "example/glass_pane": {
+    "name": "Example: translucent display list",
+    "model": { "displayList": "objects/object_jya_obj/gBigMirror4DL", "scale": 0.02, "translucent": true }
+  },
+  "En_Kanban": {
+    "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL" }
+  },
+  "example/look_on_static": {
+    "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL" },
+    "look": { "limb": 1 }
+  },
+  "example/bad_skeleton": {
+    "model": {
+      "skeleton": "objects/example/does_not_exist",
+      "animation": "objects/object_toryo/object_toryo_Anim_000E50"
+    }
+  },
+  "example/bad_animation": {
+    "model": {
+      "skeleton": "objects/object_toryo/object_toryo_Skel_007150",
+      "animation": "objects/object_ma1/gMalonChildEyeOpenTex"
+    }
   }
 }

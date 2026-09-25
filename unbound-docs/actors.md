@@ -128,7 +128,7 @@ both, or neither, **rejects the entry**.
 |---|---|
 | `skeleton` | path of a skeleton resource, normal or flex. A curve skeleton is not supported: the actor does not spawn and an error is logged. |
 | `animation` | path of an animation for `skeleton`, with the skeleton's limb count. Required with `skeleton`: absent **rejects the entry**, because an OoT skeleton has no usable rest pose (with every joint angle zero it folds up). For a still model, hold one frame with `frame`. Ignored with `displayList`. |
-| `frame` | number: when present, the animation is held on this frame (a pose); absent, the animation loops |
+| `frame` | number: when present, the animation is held on this frame (a pose), clamped to the animation's first and last frames; absent, the animation loops |
 | `speed` | number: playback rate for a looping animation; default 1 |
 | `displayList` | path of a display list: the whole model, drawn as it is |
 | `translucent` | boolean: draw in the translucent pass instead of the opaque one, for models with real transparency (glass, ghosts, water). Default false. Cut-out transparency such as leaves and fences does not need it: the display list's own render mode handles that in the opaque pass. |
@@ -167,7 +167,7 @@ model the mod ships:
 
 | Key | Type / meaning |
 |---|---|
-| `message` | integer message id 0–65534 (§5): the default text. Default 0 = none, in which case only placements that set `params` talk. |
+| `message` | integer message id 0–65534 (§5): the default text. Default 0 = none, in which case only placements that set `params` talk. A value outside the range reads as 0, with an error. |
 | `range` | number: talk range in world units; default 50 + `collision.radius` (vanilla's default) |
 
 The message shown is `params` (read as unsigned 16-bit) when it is non-zero and not `0xFFFF`,

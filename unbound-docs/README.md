@@ -147,4 +147,8 @@ Tag the branch's head: the caches belong to the head, and the release run warns 
 elsewhere. If the tag run cannot start the release run, start it by hand with
 `gh workflow run generate-builds.yml -R roborich/Shipwright --ref unbound -f tag=<tag>`.
 
+A tag ending in `-test` (`9.2.3-unbound-ci-test`) runs the whole pipeline but publishes a **draft**
+release, visible only to maintainers, and is never used as the previous tag for release notes.
+Delete the draft and the tag afterwards (`gh release delete <tag> --cleanup-tag`).
+
 `gh` defaults to upstream here; pass `-R roborich/Shipwright` to watch the run or the release.

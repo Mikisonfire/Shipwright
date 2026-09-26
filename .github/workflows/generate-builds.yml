@@ -413,8 +413,9 @@ jobs:
         FACTS=$(.github/workflows/release-product.sh "$TAG")
         echo "$FACTS" >> "$GITHUB_OUTPUT"
         PRODUCT=$(sed -n 's/^product=//p' <<< "$FACTS")
-        # Release notes are generated against the previous tag of the same product, not the other one.
-        PREV=$(git tag --sort=-creatordate | grep -- "$PRODUCT" | grep -vx -- "$TAG" | head -n 1 || true)
+        # Release notes are generated against the previous tag of the same product, not the other one,
+        # and never against a pipeline test tag.
+        PREV=$(git tag --sort=-creatordate | grep -- "$PRODUCT" | grep -v -- '-test$' | grep -vx -- "$TAG" | head -n 1 || true)
         echo "prev=$PREV" >> "$GITHUB_OUTPUT"
     - name: Download macOS build
       uses: actions/download-artifact@v7
@@ -443,9 +444,11 @@ jobs:
         PRODUCT: ${{ steps.product.outputs.product }}
         TITLE: ${{ steps.product.outputs.title }}
         PREV: ${{ steps.product.outputs.prev }}
+        DRAFT: ${{ steps.product.outputs.draft }}
       run: |
         NOTES_FILE=".github/release-notes/${PRODUCT}.md"
         ARGS=(--title "$TITLE" --generate-notes)
         [ -n "$PREV" ] && ARGS+=(--notes-start-tag "$PREV")
         [ -f "$NOTES_FILE" ] && ARGS+=(--notes-file "$NOTES_FILE")
+        [ "$DRAFT" = true ] && ARGS+=(--draft)
         gh release create "$TAG" dist/* "${ARGS[@]}"

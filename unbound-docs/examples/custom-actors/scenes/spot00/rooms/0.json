@@ -16,7 +16,8 @@
         "101": { "id": "example/too_few_joints",  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "102": { "id": "example/later_model_key", "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "103": { "id": "0x1000",                  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
-        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } }
+        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } },
+        "105": { "id": -5,                        "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 }
       }
     },
     "1": {
@@ -35,7 +36,8 @@
         "101": { "id": "example/too_few_joints",  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "102": { "id": "example/later_model_key", "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "103": { "id": "0x1000",                  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
-        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } }
+        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } },
+        "105": { "id": -5,                        "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 }
       }
     },
     "2": {
@@ -54,7 +56,8 @@
         "101": { "id": "example/too_few_joints",  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "102": { "id": "example/later_model_key", "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "103": { "id": "0x1000",                  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
-        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } }
+        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } },
+        "105": { "id": -5,                        "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 }
       }
     }
   }

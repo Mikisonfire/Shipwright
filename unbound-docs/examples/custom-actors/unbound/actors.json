@@ -80,5 +80,8 @@
   },
   "example/later_model_key": {
     "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL", "lod": "later" }
+  },
+  "example/zero_scale": {
+    "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL", "scale": 0 }
   }
 }

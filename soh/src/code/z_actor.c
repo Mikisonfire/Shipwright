@@ -3413,8 +3413,8 @@ Actor* Actor_Spawn(ActorContext* actorCtx, PlayState* play, s16 actorId, f32 pos
     SetActorListIndex(actor, -1);
     // #endregion
 
-    assert(dbEntry->numLoaded < 255);
-
+    // SOH [Unbound] No per-type cap: numLoaded is an s32, and a room may hold hundreds of one prop (unbound-docs
+    // SPEC §9). Vanilla asserted fewer than 255, a count from its 8-bit overlay client counter.
     dbEntry->numLoaded++;
 
     if (HREG(20) != 0) {

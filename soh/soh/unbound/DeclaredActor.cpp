@@ -4,6 +4,7 @@
 #include "DeclaredActor.h"
 
 #include <algorithm>
+#include <unordered_map>
 #include <libultraship/libultraship.h>
 #include <spdlog/spdlog.h>
 
@@ -31,7 +32,6 @@ typedef struct DeclaredActor {
     ColliderCylinder collider;
     NpcInteractInfo interactInfo;
     u8 hasSkeleton;
-    u8 hasAnimation;
     u8 hasCollision;
     u8 talkable;
     u8 talking;
@@ -73,7 +73,7 @@ uint32_t AssetType(const std::shared_ptr<Ship::IResource>& resource) {
 }
 
 // The resource at `path` if it is a skeleton the driver can animate, else nullptr: normal or flex, with standard or
-// LOD limbs. Skin limbs (Epona's) have no display list where the skeleton drawer reads one.
+// LOD limbs, at least one. Skin limbs (Epona's) have no display list where the skeleton drawer reads one.
 std::shared_ptr<SOH::Skeleton> LoadSkeleton(const std::string& path) {
     auto resource = LoadAsset(path);
     if (AssetType(resource) != (uint32_t)SOH::ResourceType::SOH_Skeleton) {
@@ -82,17 +82,18 @@ std::shared_ptr<SOH::Skeleton> LoadSkeleton(const std::string& path) {
     auto skeleton = std::static_pointer_cast<SOH::Skeleton>(resource);
     bool supportedType = skeleton->type == SOH::SkeletonType::Normal || skeleton->type == SOH::SkeletonType::Flex;
     bool supportedLimbs = skeleton->limbType == SOH::LimbType::Standard || skeleton->limbType == SOH::LimbType::LOD;
-    return supportedType && supportedLimbs ? skeleton : nullptr;
+    return supportedType && supportedLimbs && skeleton->limbCount > 0 ? skeleton : nullptr;
 }
 
-// The resource at `path` if it is a normal (not Link's) animation, else nullptr.
+// The resource at `path` if it is a normal (not Link's) animation with at least one frame, else nullptr.
 std::shared_ptr<SOH::Animation> LoadAnimation(const std::string& path) {
     auto resource = LoadAsset(path);
     if (AssetType(resource) != (uint32_t)SOH::ResourceType::SOH_Animation) {
         return nullptr;
     }
     auto animation = std::static_pointer_cast<SOH::Animation>(resource);
-    return animation->type == SOH::AnimationType::Normal ? animation : nullptr;
+    bool normal = animation->type == SOH::AnimationType::Normal;
+    return normal && animation->animationData.animationHeader.common.frameCount > 0 ? animation : nullptr;
 }
 
 bool IsDisplayList(const std::string& path) {
@@ -118,9 +119,9 @@ f32 LoopSpeed(f32 speed, f32 length) {
 }
 
 // The shadow scale that draws `shadow` at the same size whatever the model's scale: vanilla scales a shadow by the
-// actor's scale, and `shadow` is given at the scale of vanilla NPCs.
+// actor's scale, and `shadow` is given at the scale of vanilla NPCs. The registry accepts only a positive scale.
 f32 ShadowScale(const DeclaredActorType& type) {
-    return type.scale > 0.0f ? type.shadow * kVanillaNpcScale / type.scale : 0.0f;
+    return type.shadow * kVanillaNpcScale / type.scale;
 }
 
 // The height of the focus point above the actor's position when there is no head to put it on.
@@ -128,19 +129,113 @@ f32 FocusHeight(const DeclaredActorType& type) {
     return type.HasCollision() ? (f32)(type.yShift + type.height) : 0.0f;
 }
 
-// ---- init ---------------------------------------------------------------------------------------------------------
+// ---- type checks --------------------------------------------------------------------------------------------------
 
-bool Fail(DeclaredActor* self, const char* what, const std::string& path) {
-    SPDLOG_ERROR("[Unbound] actor type '{}': {} '{}'; this actor does not spawn", self->type->name, what,
+// What the first spawn of a type found about its assets.
+struct TypeCheck {
+    bool spawns = false; // every asset path names an asset the driver can use
+    bool flex = false;   // the skeleton is a flex skeleton
+    bool looks = false;  // `look.limb` is a limb of the skeleton
+};
+
+void LogUnusable(const DeclaredActorType& type, const char* what, const std::string& path) {
+    SPDLOG_ERROR("[Unbound] actor type '{}': {} '{}'; actors of this type do not spawn", type.name, what,
                  path.substr(DeclaredActorType::kOtrPrefixLength));
-    Actor_Kill(&self->actor);
-    return false;
 }
+
+// Every segment texture must load: an unresolved path would reach the renderer as raw bytes.
+bool SegmentsUsable(const DeclaredActorType& type) {
+    for (const auto& [segment, texture] : type.segments) {
+        if (!IsTexture(texture)) {
+            LogUnusable(type, "no texture at", texture);
+            return false;
+        }
+    }
+    return true;
+}
+
+// The skeleton, or nullptr, logged, when the skeleton or its animation cannot be used.
+std::shared_ptr<SOH::Skeleton> UsableSkeleton(const DeclaredActorType& type) {
+    auto skeleton = LoadSkeleton(type.skeleton);
+    if (skeleton == nullptr) {
+        LogUnusable(type, "no normal or flex skeleton with standard or LOD limbs at", type.skeleton);
+        return nullptr;
+    }
+    auto animation = LoadAnimation(type.animation);
+    if (animation == nullptr) {
+        LogUnusable(type, "no animation with frames at", type.animation);
+        return nullptr;
+    }
+    // One entry per limb plus the root position, as the skeleton's joint table: fewer would be read past the end.
+    if (animation->rotationIndices.size() < (size_t)skeleton->limbCount + 1) {
+        LogUnusable(type, "an animation for fewer limbs than the skeleton at", type.animation);
+        return nullptr;
+    }
+    return skeleton;
+}
+
+// Limb-draw numbering: the root is 1 and the last limb is limbCount.
+bool LookLimbValid(const DeclaredActorType& type, s32 limbCount) {
+    if (!type.looks) {
+        return false;
+    }
+    if (type.limb < 1 || type.limb > limbCount) {
+        SPDLOG_ERROR("[Unbound] actor type '{}': look limb {} is not a limb of its skeleton (1-{}); the head will not "
+                     "turn",
+                     type.name, type.limb, limbCount);
+        return false;
+    }
+    return true;
+}
+
+TypeCheck CheckType(const DeclaredActorType& type) {
+    TypeCheck check;
+    if (!SegmentsUsable(type)) {
+        return check;
+    }
+    if (type.skeleton.empty()) {
+        check.spawns = IsDisplayList(type.displayList);
+        if (!check.spawns) {
+            LogUnusable(type, "no display list at", type.displayList);
+        }
+        return check;
+    }
+    auto skeleton = UsableSkeleton(type);
+    if (skeleton != nullptr) {
+        check.spawns = true;
+        check.flex = skeleton->type == SOH::SkeletonType::Flex;
+        check.looks = LookLimbValid(type, skeleton->limbCount);
+    }
+    return check;
+}
+
+// Checks a type on its first spawn and remembers the result for the session, so its assets are looked up, and a
+// problem logged, once rather than for every placement. Mods are mounted only at startup, so neither the registry nor
+// the assets its paths name change later, and the registry never moves a type, so its address is a stable key.
+const TypeCheck& CheckedType(const DeclaredActorType& type) {
+    static std::unordered_map<const DeclaredActorType*, TypeCheck> sChecked;
+    auto it = sChecked.find(&type);
+    if (it == sChecked.end()) {
+        it = sChecked.emplace(&type, CheckType(type)).first;
+    }
+    return it->second;
+}
+
+// ---- init ---------------------------------------------------------------------------------------------------------
 
 bool ResolveType(DeclaredActor* self) {
     self->type = SOH::Unbound::GetDeclaredActorType(self->actor.id);
     if (self->type == nullptr) {
         SPDLOG_ERROR("[Unbound] actor id {:#x} is not a declared actor type", self->actor.id);
+        Actor_Kill(&self->actor);
+        return false;
+    }
+    return true;
+}
+
+// Kills the actor when its type's assets cannot be used (CheckType logged why).
+bool CanSpawn(DeclaredActor* self) {
+    if (!CheckedType(*self->type).spawns) {
         Actor_Kill(&self->actor);
         return false;
     }
@@ -155,16 +250,23 @@ void InitShape(DeclaredActor* self) {
 }
 
 // The ground the round shadow is drawn on: the shadow draws only over a known floor. The actor never moves, so one
-// raycast at spawn serves, and it records the floor without moving the actor onto it.
+// raycast at spawn serves, and it records the floor without moving the actor onto it. Only scene collision is kept:
+// a moving floor's polygons are renumbered as dyna actors come and go, so a stored pointer would drift to another
+// polygon.
 void InitFloor(DeclaredActor* self, PlayState* play) {
     if (self->actor.shape.shadowDraw == NULL) {
         return;
     }
     Vec3f checkPos = self->actor.world.pos;
     checkPos.y += 50.0f; // as the vanilla floor check, so a floor at the actor's feet is found
+    CollisionPoly* floorPoly = NULL;
     s32 bgId = BGCHECK_SCENE;
-    self->actor.floorHeight =
-        BgCheck_EntityRaycastFloor5(play, &play->colCtx, &self->actor.floorPoly, &bgId, &self->actor, &checkPos);
+    f32 floorHeight = BgCheck_EntityRaycastFloor5(play, &play->colCtx, &floorPoly, &bgId, &self->actor, &checkPos);
+    if (bgId != BGCHECK_SCENE) {
+        return;
+    }
+    self->actor.floorPoly = floorPoly;
+    self->actor.floorHeight = floorHeight;
     self->actor.floorBgId = bgId;
 }
 
@@ -179,16 +281,9 @@ void InitCulling(DeclaredActor* self) {
     }
 }
 
-bool InitAnimation(DeclaredActor* self) {
+// The animation is loaded and checked by CheckType.
+void InitAnimation(DeclaredActor* self) {
     const DeclaredActorType& type = *self->type;
-    auto resource = LoadAnimation(type.animation);
-    if (resource == nullptr) {
-        return Fail(self, "no animation at", type.animation);
-    }
-    // One entry per limb plus the root position, as the skeleton's joint table: fewer would be read past the end.
-    if (resource->rotationIndices.size() < self->skelAnime.limbCount) {
-        return Fail(self, "an animation for fewer limbs than the skeleton at", type.animation);
-    }
     AnimationHeader* animation = (AnimationHeader*)type.animation.c_str();
     f32 lastFrame = Animation_GetLastFrame(animation);
     if (type.holdFrame) {
@@ -198,47 +293,28 @@ bool InitAnimation(DeclaredActor* self) {
         f32 speed = LoopSpeed(type.speed, Animation_GetLength(animation));
         Animation_Change(&self->skelAnime, animation, speed, 0.0f, lastFrame, ANIMMODE_LOOP, 0.0f);
     }
-    self->hasAnimation = true;
-    return true;
 }
 
-bool InitSkeleton(DeclaredActor* self, PlayState* play) {
+// The skeleton is checked by CheckType; a display-list model needs no setup.
+void InitMesh(DeclaredActor* self, PlayState* play) {
     const DeclaredActorType& type = *self->type;
-    auto skeleton = LoadSkeleton(type.skeleton);
-    if (skeleton == nullptr) {
-        return Fail(self, "no normal or flex skeleton with standard or LOD limbs at", type.skeleton);
+    if (type.skeleton.empty()) {
+        return;
     }
-    if (skeleton->type == SOH::SkeletonType::Flex) {
+    if (CheckedType(type).flex) {
         SkelAnime_InitFlex(play, &self->skelAnime, (FlexSkeletonHeader*)type.skeleton.c_str(), NULL, NULL, NULL, 0);
     } else {
         SkelAnime_Init(play, &self->skelAnime, (SkeletonHeader*)type.skeleton.c_str(), NULL, NULL, NULL, 0);
     }
     self->hasSkeleton = true;
-    return InitAnimation(self);
+    InitAnimation(self);
 }
 
-// Every segment texture must load: an unresolved path would reach the renderer as raw bytes.
-bool InitSegments(DeclaredActor* self) {
-    for (const auto& [segment, texture] : self->type->segments) {
-        if (!IsTexture(texture)) {
-            return Fail(self, "no texture at", texture);
-        }
-    }
-    return true;
-}
-
-bool InitMesh(DeclaredActor* self, PlayState* play) {
-    if (!self->type->skeleton.empty()) {
-        return InitSkeleton(self, play);
-    }
-    return IsDisplayList(self->type->displayList) || Fail(self, "no display list at", self->type->displayList);
-}
-
-bool InitModel(DeclaredActor* self, PlayState* play) {
+void InitModel(DeclaredActor* self, PlayState* play) {
     InitShape(self);
     InitFloor(self, play);
     InitCulling(self);
-    return InitSegments(self) && InitMesh(self, play);
+    InitMesh(self, play);
 }
 
 void InitCollision(DeclaredActor* self, PlayState* play) {
@@ -270,18 +346,7 @@ void InitTalk(DeclaredActor* self) {
 }
 
 void InitLook(DeclaredActor* self) {
-    const DeclaredActorType& type = *self->type;
-    if (!type.looks || !self->hasSkeleton) {
-        return;
-    }
-    // Limb-draw numbering: the root is 1 and the last limb is limbCount - 1 (jointTable[0] is the root position).
-    if (type.limb < 1 || type.limb >= self->skelAnime.limbCount) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': look limb {} is not a limb of its skeleton (1-{}); the head will not "
-                     "turn",
-                     type.name, type.limb, self->skelAnime.limbCount - 1);
-        return;
-    }
-    self->looking = true;
+    self->looking = CheckedType(*self->type).looks;
 }
 
 void InitFocus(DeclaredActor* self) {
@@ -306,15 +371,26 @@ void CloseEventBox(PlayState* play) {
     }
 }
 
+// A culled actor does not update, and CloseEventBox runs in its update: while talking, it updates wherever the
+// camera is. The type's flags never include this one, so clearing it restores them.
+void KeepUpdatingWhileTalking(DeclaredActor* self) {
+    if (self->talking) {
+        self->actor.flags |= ACTOR_FLAG_UPDATE_CULLING_DISABLED;
+    } else {
+        self->actor.flags &= ~ACTOR_FLAG_UPDATE_CULLING_DISABLED;
+    }
+}
+
 void UpdateTalk(DeclaredActor* self, PlayState* play) {
     if (!self->talkable) {
         return;
     }
     self->talking = IsTalkingTo(self, play);
+    KeepUpdatingWhileTalking(self);
     if (self->talking) {
         CloseEventBox(play);
     } else if (!Actor_ProcessTalkRequest(&self->actor, play)) {
-        func_8002F2CC(&self->actor, play, self->type->range); // offer to talk
+        func_8002F2CC(&self->actor, play, self->type->talkRange); // offer to talk
     }
 }
 
@@ -340,7 +416,7 @@ void UpdateCollision(DeclaredActor* self, PlayState* play) {
 }
 
 void UpdateAnimation(DeclaredActor* self) {
-    if (self->hasAnimation && !self->type->holdFrame) {
+    if (self->hasSkeleton && !self->type->holdFrame) {
         SkelAnime_Update(&self->skelAnime);
     }
 }
@@ -466,9 +542,10 @@ namespace {
 
 void DeclaredActor_Init(Actor* thisx, PlayState* play) {
     DeclaredActor* self = (DeclaredActor*)thisx;
-    if (!ResolveType(self) || !InitModel(self, play)) {
+    if (!ResolveType(self) || !CanSpawn(self)) {
         return;
     }
+    InitModel(self, play);
     InitCollision(self, play);
     InitTalk(self);
     InitLook(self);

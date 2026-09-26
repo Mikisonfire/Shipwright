@@ -1,7 +1,7 @@
 # Example: custom actor types
 
-Declares thirteen actor types in `unbound/actors.json`, eight that register (four of them fail to
-spawn, on purpose) and five that are rejected, and places them by name in Hyrule Field (`spot00`,
+Declares fourteen actor types in `unbound/actors.json`, eight that register (four of them fail to
+spawn, on purpose) and six that are rejected, and places them by name in Hyrule Field (`spot00`,
 room 0, setups 0–2: child day and night, adult day) just outside the castle drawbridge, using only
 vanilla assets by path. It is the test fixture for
 [`actors.md`](../../actors.md).
@@ -26,9 +26,11 @@ them.
 | `102` | `example/later_model_key` | — | a key this build does not know inside `model` (`lod`): the type is rejected and the placement skipped |
 | `103` | `0x1000` | — | a custom type's number instead of its name: the placement is skipped |
 | `104` | `example/talking_pot` | — | `params` as an object (reserved for named arguments): the placement is skipped |
+| `105` | `-5` | — | a negative number, which names no actor: the placement is skipped |
 
-Two entries are never placed: a type keyed `En_Kanban` (rejected, the name is a vanilla actor's) and
-`example/look_on_static` (rejected, `look` needs a skeleton).
+Three entries are never placed: a type keyed `En_Kanban` (rejected, the name is a vanilla actor's),
+`example/look_on_static` (rejected, `look` needs a skeleton) and `example/zero_scale` (rejected, a
+scale must be positive).
 
 The messages are `0xA001`–`0xA003` in `text/eng/messages.json`.
 
@@ -39,11 +41,13 @@ Package with any zip tool, keeping the paths, and drop the result in SoH's `mods
 ## Expected
 
 - The log registers eight types from `0x1000` (in key order, interleaved with any other mounted
-  mod's types) and rejects five: `En_Kanban` ("already names an actor"), `look_on_static`
-  ("needs a skeleton"), `no_animation` ("needs an animation"), and `uses_a_later_key` and
-  `later_model_key` ("not a key this build knows"). When the field loads, placements `93`–`95` and
-  `102` are skipped as naming no known actor, `103` and `104` are skipped for their id and params,
-  and `97`, `98`, `100` and `101` fail to spawn with the path they could not use.
+  mod's types) and rejects six: `En_Kanban` ("already names an actor"), `look_on_static`
+  ("needs a skeleton"), `no_animation` ("needs an animation"), `zero_scale` ("must be a positive
+  number"), and `uses_a_later_key` and `later_model_key` ("not a key this build knows"). When the
+  field loads, placements `93`–`95` and `102` are skipped as naming no known actor, `103` and `105`
+  are skipped for their ids and `104` for its params, and `97`, `98`, `100` and `101` fail to spawn,
+  each with one error naming the path it could not use ("actors of this type do not spawn"),
+  logged the first time the type spawns and not again when the field reloads.
 - The carpenter stands in his idle loop, turns his head to follow Link within 200 units and while
   talking, and says `0xA001` (three lines over two boxes). He and Malon cast round shadows. Malon stands still in one frame of her
   singing pose with open eyes and a smile, no extra hands, and says `0xA002`. The pot says

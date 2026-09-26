@@ -98,9 +98,10 @@ bool IsActorName(const Json& id) {
 }
 
 // SOH [Unbound] Ids from kCustomActorIdBase up are assigned at load in registry order, so the same number means
-// another type once another mod is mounted: those actors are addressed by name only.
+// another type once another mod is mounted: those actors are addressed by name only. A negative number names no actor,
+// and one far enough below zero would wrap into the custom range in the 16-bit id.
 bool IsStableActorId(int64_t id) {
-    return id < SOH::Unbound::kCustomActorIdBase;
+    return id >= 0 && id < SOH::Unbound::kCustomActorIdBase;
 }
 
 ActorEntry ReadActor(const Json& a) {
@@ -353,8 +354,8 @@ Command BuildExitList(CommandBuilder& b, const Json& list) {
     return cmd;
 }
 
-// SOH [Unbound] A transition actor's id is a number below the custom actor types. A name, or a custom type's
-// number, reads as -1, which the spawn loop skips; the entry keeps its place because the list is positional.
+// SOH [Unbound] A transition actor's id is a number from 0 to just below the custom actor types. A name, or any
+// other number, reads as -1, which the spawn loop skips; the entry keeps its place because the list is positional.
 s16 ReadTransitionActorId(const CommandBuilder& b, const std::string& key, const Json& t) {
     auto it = t.find(K::kId);
     if (it != t.end() && IsActorName(*it)) {
@@ -365,9 +366,8 @@ s16 ReadTransitionActorId(const CommandBuilder& b, const std::string& key, const
     }
     int64_t id = Field(t, K::kId);
     if (!IsStableActorId(id)) {
-        SPDLOG_ERROR(
-            "[Unbound] {}: transition actor {} has id {:#x}, a custom actor type's number, so it does not spawn",
-            b.docPath, key, id);
+        SPDLOG_ERROR("[Unbound] {}: transition actor {} has id {:#x}, outside 0-{:#x}, so it does not spawn", b.docPath,
+                     key, id, SOH::Unbound::kCustomActorIdBase - 1);
         return -1;
     }
     return (s16)id;
@@ -683,13 +683,14 @@ bool ResolveActorName(const CommandBuilder& b, const std::string& key, const std
     return true;
 }
 
-// SOH [Unbound] A room actor's numeric `id` must be below the custom actor types. False, logged, otherwise.
+// SOH [Unbound] A room actor's numeric `id` must be from 0 to just below the custom actor types. False, logged,
+// otherwise.
 bool CheckActorNumber(const CommandBuilder& b, const std::string& key, const Json& a) {
     int64_t id = Field(a, K::kId);
     if (!IsStableActorId(id)) {
-        SPDLOG_ERROR("[Unbound] {}: actor '{}' has id {:#x}, a custom actor type's number, which changes with the "
-                     "mounted mods; place it by name. It is skipped",
-                     b.docPath, key, id);
+        SPDLOG_ERROR("[Unbound] {}: actor '{}' has id {:#x}, outside 0-{:#x} (custom actor types are placed by "
+                     "name); it is skipped",
+                     b.docPath, key, id, SOH::Unbound::kCustomActorIdBase - 1);
         return false;
     }
     return true;

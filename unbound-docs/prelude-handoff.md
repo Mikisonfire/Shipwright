@@ -6,6 +6,30 @@ let the user build. **The contract is [`SPEC.md`](./SPEC.md)**; every entry belo
 section that defines it, and when this page and SPEC disagree, SPEC wins. Everything in the code
 is tagged `SOH [Unbound]`.
 
+## 2026-09-26 — custom actor types: declared in `unbound/actors.json`, placed by name
+
+A mod can now add actor types without C code, and place them, and any actor ActorDB knows, **by
+name** in a room's `actors`. A **declared** type is a new actor drawn and run by the game (a
+model, a collision cylinder, talking, head tracking). On branch `unbound-custom-actors-mvp`,
+play-tested with a Prelude export; **not in a release yet**. Design and engine notes:
+[`actors.md`](./actors.md). Reference export:
+[`examples/custom-actors`](./examples/custom-actors/README.md) (every key, and every rejection).
+
+| Change | SPEC | Prelude must |
+|---|---|---|
+| New layer-merged registry `unbound/actors.json`, keyed by type name (namespace it: `mymod/old_man`). The game numbers each type from 0x1000 in registry order; the number is never written. A key that is an integer string or an existing actor name is rejected. | §7.2 | Author entries; offer registered types in the actor palette by name. Never write a custom type's number. |
+| A room actor's `id` may be a **name**: a registered type, or any name ActorDB knows (`En_Kanban`, a fork's C actor). Unknown names are skipped with an error. Names only in room `actors`; spawns and transition actors keep integers. An integer `id` must be 0–`0xFFF`: anything else is skipped. | §4.3 | Write `"id": "<name>"` for custom types; this replaces typing raw ids for fork actors too. A vanilla actor placed by name still needs its object in the room's `objects`, as by number. |
+| `model`: exactly one of `skeleton` + required `animation`, or `displayList`; `frame` to hold a pose, `speed`, `scale` (must be positive), `yOffset`, `translucent`, `shadow`, `cullRadius`, `drawDistance`, `segments` 8–12, `hideLimbs`. Optional `collision` (cylinder), `talk` (`message`, `range`), `look` (`limb`, `pivot`, `range`). A declared type needs no object in the room: assets load by path. | §7.2 | Preview the skeleton in the chosen frame, or the display list. Let the user pick `look.limb` and `hideLimbs` from the skeleton's limb list, numbered from **1 at the root** in skeleton order; limb names can mislead (Ganondorf's "Jewel" limb is his head root). Set `cullRadius` to the model's reach from its origin for anything larger than an NPC. |
+| A skeleton must be normal or flex with standard or LOD limbs, and its animation must have frames and cover every limb; otherwise no actor of the type spawns. | §7.2 | Validate at export, so the user is not left with an invisible type. |
+| A talking type's placement `params` is its **message id** (non-zero and not 0xFFFF), else `talk.message`. `params` as an object is reserved and skips the placement. | §7.2, §4.3 | Show a message picker for `params` on talking types. Write `params` as an integer. |
+| `shadow` draws on scene collision only, not on a moving platform's. | §7.2 | Nothing; mention it if the user places a shadowed actor on a platform. |
+| Unknown keys, at the top level or inside `model`, `collision`, `talk`, `look`, reject a type (`base`, `params`, `script` are reserved). | §7.2 | Emit only the keys listed. |
+| Mod-supplied display lists, skeletons, animations and textures are ordinary resources at any path (`objects/<mod>/…`, never `alt/`). An actor model is in **model space**: `scale` converts to world units (a room-style world-unit export needs `scale` 1). | §7.2 | Export actor models centred on their origin, base on the ground or offset with `yOffset`. |
+
+**Older builds place an extra Link.** Every release up to `unbound0.7` reads a string `id` as missing,
+which is id 0, the player actor, and `requires.formatVersion` cannot stop it (SPEC §10 note). When an
+export uses a name, tell the user it needs the release that adds custom actors.
+
 ## 2026-09-20 — `sound` sentinels: none is `natureAmbience: 19`, no music is `seq: 127`
 
 From a player's crash log: four identical audio-thread crashes at the first in-game sunset in

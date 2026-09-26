@@ -1,10 +1,11 @@
 # Unbound: custom actors
 
-**Status: implemented on branch `unbound-custom-actors`; play-tested 2026-09-25** (every item of the
-verification plan, in game and through a Prelude export). The test fixture is
-[`examples/custom-actors`](./examples/custom-actors/README.md). The "Proposed SPEC text" section
-moves into [`SPEC.md`](./SPEC.md) when the branch is merged, and this file becomes the how-doc,
-like the others in this directory.
+Custom actor types declared in data and placed by name. The format is [`SPEC.md`](./SPEC.md) §7.2
+and §4.3; this file covers why and how. Overview in [`README.md`](./README.md).
+
+**Status:** implemented on branch `unbound-custom-actors-mvp` and play-tested 2026-09-25 (every
+item of the verification plan, in game and through a Prelude export). The test fixture is
+[`examples/custom-actors`](./examples/custom-actors/README.md).
 
 ## Why
 
@@ -19,7 +20,7 @@ Modders want actors the game does not have. Today the only way is C code in a fo
   prop with a model the game does not use. That should not need a C compiler.
 
 The long-term goal is **scriptable custom actors**. Scripting needs a lot of design and is
-deliberately not part of this proposal. This proposal is the first step toward it: custom actor
+deliberately not part of this work. This is the first step toward it: custom actor
 *types*, declared in data, with a few built-in behaviors, addressed by name. The later steps are
 listed at the end so the format leaves room for them now.
 
@@ -33,7 +34,7 @@ listed at the end so the format leaves room for them now.
    id, `params` per placement).
 2. **Types are referenced by name.** A scene's actor entry may name its actor
    (`"id": "mymod/old_man"`). The numeric id is assigned at load and never written to a file, the
-   same rule scenes and entrances already follow (SPEC §7). This also fixes the fork problem: a
+   same rule scenes and entrances already follow (SPEC §7.1). This also fixes the fork problem: a
    fork's C actor registered in ActorDB under a name is placed by that name. Any name ActorDB
    knows is accepted, spelled as ActorDB spells it, vanilla included (`"En_Kanban"`). The
    converter keeps writing vanilla actors as numbers.
@@ -104,134 +105,18 @@ A room places it by name. Two placements of one type can say different things th
 The first says message `0xA001` (the type's default); the second says `0xA002`. Both messages are
 ordinary entries in `text/<lang>/messages.json` (SPEC §5).
 
-## Proposed SPEC text
+## Format
 
-Three changes, all additions under format version 2 (SPEC §10).
-
-### New section — Actor registry: `unbound/actors.json`
-
-One layer-merged document (§3), keyed by actor type name. Like §7, it carries no `$schema`.
-
-| Key | Required | Type / meaning |
-|---|---|---|
-| key | — | type name: any unique, non-empty string that is not an integer in the §2 string form and is not an actor name the game already knows (vanilla names such as `En_Kanban`, and actors SoH or a build adds in code). Writers should namespace it (`mymod/old_man`). Any other key **rejects the entry**. An entry that is not an object is ignored. |
-| `name` | no | display name; default = the key |
-| `model` | yes | object (below). An entry without one is **rejected**. |
-| `collision` | no | object (below); absent = the actor has no collision and can be walked through |
-| `talk` | no | object (below); absent = the actor cannot be targeted or talked to |
-| `look` | no | object (below): the head turns to follow the player. Needs a `model.skeleton`; on a static model it **rejects the entry**. |
-| any other key | — | **rejects the entry**. Keys this version does not define are reserved for later versions (`base`, `params`, `script`). A build that predates a key therefore rejects the type, and its placements are skipped as unknown names, instead of spawning an actor without the behavior. The same rule holds inside `model`, `collision`, `talk` and `look`: a key none of the tables below lists rejects the entry. |
-
-**`model`** — exactly one of `skeleton` (an animated model) or `displayList` (a static model);
-both, or neither, **rejects the entry**.
-
-| Key | Type / meaning |
-|---|---|
-| `skeleton` | path of a skeleton resource, normal or flex, with standard or LOD limbs. A curve skeleton, or one with skin limbs (Epona's), is not supported: the actor does not spawn and an error is logged. |
-| `animation` | path of an animation for `skeleton`, with the skeleton's limb count. Required with `skeleton`: absent **rejects the entry**, because an OoT skeleton has no usable rest pose (with every joint angle zero it folds up). An animation for fewer limbs than the skeleton has stops the actor from spawning, with an error. For a still model, hold one frame with `frame`. Ignored with `displayList`. |
-| `frame` | number: when present, the animation is held on this frame (a pose), clamped to the animation's first and last frames; absent, the animation loops |
-| `speed` | number: playback rate for a looping animation, in frames per update; default 1. Clamped to the animation's length either way (negative plays backwards). |
-| `displayList` | path of a display list: the whole model, drawn as it is |
-| `translucent` | boolean: draw in the translucent pass instead of the opaque one, for models with real transparency (glass, ghosts, water). Default false. Cut-out transparency such as leaves and fences does not need it: the display list's own render mode handles that in the opaque pass. The model's own render mode decides whether it blends: a vanilla character model, which sets an opaque mode, is only sorted with the translucent pass and does not turn see-through. |
-| `scale` | number; default 0.01 (the scale of most vanilla NPCs) |
-| `yOffset` | number: model-space vertical offset, applied before scale; default 0 |
-| `segments` | object: key a segment number 8–12 as a §2 integer string, value a texture path, bound before the model draws (NPC eye and mouth textures). Any other key, and a value that is not a non-empty string, is ignored with an error. A path that is not a texture stops the actor from spawning, as any other path does. A segment 8–12 the type does not name is bound to an empty display list, which is what vanilla binds on the segment many character models call to set their render mode. The environment colour is opaque black while the model draws. |
-| `hideLimbs` | array of integers: limbs, numbered as `look.limb` is, whose own mesh is not drawn; their child limbs still draw. Vanilla character code hides spare hands and props it swaps in (Malon's limbs 2 and 5, child Zelda's 3–6). Entries below 1 are ignored with an error. |
-| `shadow` | number: size of a round ground shadow, on the scale vanilla NPCs give theirs (child Malon 18, the carpenter 42); default 0 = none. It does not change with `scale`: the same value draws the same shadow on any model. The shadow is drawn on the floor under the actor's position when it spawns, when that floor is at most 50 units above or 500 below it. |
-| `cullRadius` | number, world units: how far the model reaches from the actor's position. The game stops drawing an actor whose position is off screen by more than about 350 units, which cuts off larger models at the screen edge; a larger `cullRadius` widens that margin. Default 0 = the game's default. |
-| `drawDistance` | number, world units: the actor stops drawing (and updating) beyond about this distance in front of the camera, plus `cullRadius`. Default 1000, the game's default. |
-
-Asset paths are resolved when an actor of the type spawns, not when the registry loads. A path
-that does not resolve stops that actor from spawning, with an error; it does not reject the type.
-
-A path may name a vanilla asset or one the mod ships itself, at any path in its archive (§1.4).
-Mod-supplied display lists, vertex arrays, textures, skeletons and animations are ordinary SoH
-resources of the same types vanilla objects use, as room meshes already are (§4.3). Writers
-should keep them under a path of their own (`objects/<mod>/…`) and never under `alt/`. For a
-model the mod ships:
-
-- Vertices are in **model space** around the actor's origin, and `scale` converts them to world
-  units. A room mesh is exported in world units, so the same geometry placed as an actor needs
-  `scale` 1, or coordinates exported larger to match a smaller `scale`.
-- The display list sets up its own render state (render mode, combiner, geometry mode, textures),
-  as a room mesh's does. The actor sets only the matrix and the segments in `segments`.
-- Whether the model is lit is the display list's choice: with normals and lighting enabled it is
-  lit like vanilla actors; with vertex colours and lighting off it is shaded like room geometry,
-  which matches the scene around it.
-
-**`collision`** — a solid cylinder the player cannot pass through.
-
-| Key | Type / meaning |
-|---|---|
-| `radius`, `height` | integers, world units; default 0 (a zero radius or height means no collision) |
-| `yShift` | integer: vertical offset of the cylinder's base; default 0 |
-
-**`talk`**
-
-| Key | Type / meaning |
-|---|---|
-| `message` | integer message id 0–65534 (§5): the default text. Default 0 = none, in which case only placements that set `params` talk. A value outside the range reads as 0, with an error. |
-| `range` | number: talk range in world units; default 50 + `collision.radius` (vanilla's default) |
-
-The message shown is `params` (read as unsigned 16-bit) when it is non-zero and not `0xFFFF`,
-otherwise `talk.message`. When both are zero the actor cannot be talked to. A message that does
-not exist shows whatever the game shows for a missing id, as with any actor.
-
-**`look`** — the head turns toward the player, within the neck's limits, as vanilla NPCs do.
-
-| Key | Type / meaning |
-|---|---|
-| `limb` | integer: the head limb, numbered as vanilla limb-draw code numbers limbs (the root limb is 1; vanilla NPC heads are usually 15). Required: absent, or not a limb of the skeleton, the actor spawns without head tracking and an error is logged. |
-| `pivot` | number: distance along the head limb's X axis, in model units, from the limb's origin to the point the head turns about. Default 0, the limb's origin, which is the neck on vanilla rigs. |
-| `range` | number: the head follows the player within this distance, in world units, and while talking; outside it the head returns to rest. Default 200. |
-
-The head turns about the limb's own axes the way vanilla character rigs are built: turning left
-and right about the limb's X axis, and up and down about its Z axis. A skeleton made another way
-turns its head about the wrong axes.
-
-When `look` is present, the actor's focus point (where the targeting arrow sits and the camera
-looks while talking) is its head. Otherwise it is the top of the collision cylinder, or the
-actor's position when it has no collision.
-
-A registered type gets an actor id assigned by the game, in registry order (§3.5). The number
-depends on which mods are mounted and must never be written by a tool; types are addressed by
-name only.
-
-### §4.3 — actor entry `id`
-
-> `id` is an integer (§2) **or an actor name**: a string that is not an integer in the §2 string
-> form names an actor type, either one registered in `unbound/actors.json` or an actor the game
-> already knows by name. An entry whose name is not known is skipped with an error, and the rest
-> of the list loads. A name changes nothing else about the actor: a vanilla actor placed by name
-> still needs its object in the room's `objects`, as when it is placed by number. A declared type
-> needs none.
->
-> An integer `id` must be below `0x1000`. Numbers from `0x1000` up are assigned to registered
-> types at load and change with the mounted mods, so an entry that uses one is skipped with an
-> error; such actors are placed by name.
->
-> Names are accepted in room `actors` only; spawns and transition actors keep integer ids. A
-> transition actor whose `id` is a name, or a number from `0x1000` up, does not spawn, with an
-> error; it keeps its place in the list, whose indices other data refers to.
->
-> `params` as an object is reserved for named arguments in a later version. An entry whose
-> `params` is an object is skipped with an error.
-
-(Before this change a string had the wrong type and read as missing — id 0, the player actor.
-Integer ids from `0x1000` up named no actor. A document that relied on either changes meaning; no
-valid document did.)
-
-### §9 — limits
-
-> Custom actor types: ≤ 28 672 per mounted set (actor ids are signed 16-bit and custom types are
-> numbered from 0x1000).
+The contract is [`SPEC.md`](./SPEC.md): §7.2 is the actor registry, §4.3 says a room actor's `id`
+may be a name, and §9 and §10 record the limit and the addition. This file explains why the
+format is shaped that way and how the engine implements it.
 
 ### Compatibility with older builds
 
-Every Unbound release so far reads a string `id` as the wrong type, which §2 treats as missing:
-id 0, the player actor. A scene that places a custom actor by name therefore spawns an extra Link
-on those builds instead of being refused, and `requires.formatVersion` cannot prevent it, because
-a layer that fails the version check is still merged (§6). Mods that use custom actors need the
+Every Unbound release before this one reads a string `id` as the wrong type, which SPEC §2
+treats as missing: id 0, the player actor. A scene that places a custom actor by name therefore
+spawns an extra Link on those builds instead of being refused, and `requires.formatVersion`
+cannot prevent it, because a layer that fails the version check is still merged (SPEC §6). Mods that use custom actors need the
 release that adds them. Prelude should say so when it exports one, and the release notes should
 say it too. Builds with this change skip any name they do not know, so the problem does not recur
 for later additions.
@@ -249,22 +134,22 @@ for later additions.
   loading from the same place as scenes would number the mod types *before* SoH's own `En_Partner`.
   Mods are only mounted at startup (`EnableMod` is marked "TODO: runtime changes"), so the registry
   loads once and never has to unregister.
-- **Ids start at `CUSTOM_ACTOR_ID_BASE` (0x1000)**, like custom scenes start at 128. That keeps
+- **Ids start at `kCustomActorIdBase` (0x1000)**, like custom scenes start at 128. That keeps
   them clear of the vanilla table, of `ACTOR_ID_MAX` (a "no actor" sentinel in randomizer code),
   of SoH's built-in custom actors, and of forks that took fixed ids just past the vanilla table.
   This needs a public ActorDB call that registers at a given index; `AddEntry(name, desc, index)`
   exists but is private.
 - **Duplicate names:** `ActorDB::AddEntry` `assert`s on a name it already has. The registry checks
   `RetrieveId` first and rejects the entry instead. Two mods declaring the same key are not
-  duplicates: the merge (§3) combines them into one entry before registration, so the later mod
+  duplicates: the merge (SPEC §3) combines them into one entry before registration, so the later mod
   patches the earlier one's type.
 - Every registered type is its own ActorDB entry, with its own id, name, description and flags,
   pointing at the shared driver functions. Flags: `ACTOR_FLAG_ATTENTION_ENABLED |
   ACTOR_FLAG_FRIENDLY` when the type talks. Category: `ACTORCAT_NPC` when it talks, otherwise
   `ACTORCAT_PROP`. Object: `OBJECT_GAMEPLAY_KEEP`, which is always loaded, so a scene never has to
   list an object for a declared actor. The driver loads its assets by path instead.
-- The driver finds its type with `ActorRegistry_Get(actor->id)`, an index into a vector by
-  `id - CUSTOM_ACTOR_ID_BASE`.
+- The driver finds its type with `GetDeclaredActorType(actor->id)`, an index into a vector by
+  `id - kCustomActorIdBase`.
 
 ### Name resolution in scenes
 
@@ -284,9 +169,9 @@ Each behavior is its own small function taking the instance and its type, so the
 functions read as a list of steps, and so a script can later call the same functions:
 
 ```
-Init:    ResolveType → InitModel (InitShape → InitFloor → InitCulling → InitSegments → InitMesh)
-         → InitCollision → InitTalk → InitLook → InitFocus
-Update:  UpdateTalk → UpdateLook → UpdateCollision → UpdateAnimation
+Init:    ResolveType → CanSpawn (CheckedType: once per type) → InitModel (InitShape → InitFloor
+         → InitCulling → InitMesh) → InitCollision → InitTalk → InitLook → InitFocus
+Update:  UpdateTalk (KeepUpdatingWhileTalking) → UpdateLook → UpdateCollision → UpdateAnimation
 Draw:    DrawSegments → DrawSkeleton or DrawDisplayList (limb callbacks: TurnHead, RecordHeadFocus)
 Destroy: free the skeleton and the collider, if they were set up
 ```
@@ -295,14 +180,17 @@ Destroy: free the skeleton and the collider, if they were set up
   (`ResourceMgr_OTRSigCheck`). The type stores each path with the prefix added once at
   registration, and those strings live as long as the registry, so the driver passes them
   anywhere vanilla code passes an asset symbol.
-- **Checking assets.** Before using a path, the driver loads the resource and checks its type:
-  a skeleton must be normal or flex (`SOH::Skeleton::type`) with standard or LOD limbs
-  (`limbType`: a skin limb has no display list where the skeleton drawer reads one), an
-  animation must be a normal one (not Link's) with at least one joint entry per joint-table
-  entry (`rotationIndices.size() >= skelAnime.limbCount`, the skeleton's limbs plus the root
-  position: `SkelAnime_GetFrameData` reads that many), a display list and a segment texture must
-  be one. A wrong or missing asset kills that actor with an error instead of handing the game a
-  bad pointer.
+- **Checking assets.** Before a type's first actor uses its paths, the driver loads each
+  resource and checks its type: a skeleton must be normal or flex (`SOH::Skeleton::type`) with
+  standard or LOD limbs (`limbType`: a skin limb has no display list where the skeleton drawer
+  reads one), an animation must be a normal one (not Link's) with at least one frame and at least
+  one joint entry per joint-table entry (`rotationIndices.size() >= limbCount + 1`, the
+  skeleton's limbs plus the root position: `SkelAnime_GetFrameData` reads that many), a display
+  list and a segment texture must be one. The same pass checks `look.limb` against the limb count.
+  `CheckedType` keeps the result for the session, keyed by the type's address: mods are mounted
+  only at startup, so neither the registry nor its assets change, and a bad path is logged once
+  rather than for every placement. A wrong or missing asset kills every actor of the type instead
+  of handing the game a bad pointer.
 - **Model.** The skeleton resource records its type and limb count, so `InitModel` chooses
   `SkelAnime_InitFlex` or `SkelAnime_Init` at runtime and lets it
   allocate the joint tables (`SkelAnime_Free` in destroy). Looping is
@@ -313,8 +201,11 @@ Destroy: free the skeleton and the collider, if they were set up
   scales the shadow by the actor's scale and draws only over `actor->floorPoly`, which vanilla
   actors get from `Actor_UpdateBgCheckInfo`. The driver never runs that (it would move the actor
   onto the floor), so `InitFloor` does one `BgCheck_EntityRaycastFloor5` from 50 units above the
-  position, as the vanilla check does, and records the floor only. The shadow scale is
-  `shadow × 0.01 / scale`, so `shadow` means the same at any `scale`.
+  position, as the vanilla check does, and records the floor only. It keeps a scene floor only:
+  `DynaPoly_Setup` renumbers the moving-collision polygons as dyna actors come and go, so a
+  stored pointer to one would drift to another polygon, and the shadow would take its tilt. The
+  shadow scale is `shadow × 0.01 / scale`, so `shadow` means the same at any `scale`; the
+  registry rejects a scale that is not positive.
 - **Culling.** `Actor_Init` gives every actor a zone of 1 000 forward, 350 to the sides and up,
   700 down. `InitCulling` raises the side, up and down margins to `cullRadius` and sets the
   forward distance to `drawDistance`, as vanilla scenery does by hand (`EnWood02`: 4 000 / 2 000
@@ -347,8 +238,10 @@ Destroy: free the skeleton and the collider, if they were set up
   nothing extra. A choice box closes the conversation whatever the answer, because there is no
   behavior to branch to yet; `Message_Update` closes it. A box that ends in an event (or is
   persistent) waits for its actor, so the driver closes it when the player advances
-  (`TEXT_STATE_EVENT` and `Message_ShouldAdvance`), as vanilla actors do. These limits are
-  intentional.
+  (`TEXT_STATE_EVENT` and `Message_ShouldAdvance`), as vanilla actors do. That close runs in the
+  actor's update, which a culled actor skips, so while talking the actor sets
+  `ACTOR_FLAG_UPDATE_CULLING_DISABLED` on itself and clears it afterwards (no type sets it). These
+  limits are intentional.
 - **Look.** The same pattern as vanilla NPCs, which all hard-code it per actor (`EnKo`, `EnMa1`,
   `EnToryo`, … usually on limb 15). `UpdateLook` calls `Npc_TrackPoint` (preset 0: 60° of head
   yaw) in `NPC_TRACKING_HEAD` mode while the player is within `range` or talking, and in
@@ -376,6 +269,9 @@ Save states copy the heap wholesale and hold no id tables. Fixed along the way:
 - `Actor_Spawn` only `assert`ed that the id had an actor. Release builds drop asserts, so an id
   with no actor (a gap below `0x1000`, a typo in a scene, a debug-console or Crowd Control spawn)
   allocated a zero-size actor and wrote past it. It now logs and spawns nothing.
+- `Actor_Spawn` also `assert`ed fewer than 255 live actors of one type, a count left from
+  vanilla's 8-bit overlay counter. `numLoaded` is an `s32`, and a room of declared props can
+  hold hundreds of one type, which aborted Debug builds. The assert is gone.
 - `ActorDB::AddEntry` `assert`s on a duplicate id or name, which also vanish in release. The
   registry registers through `ActorDB::TryAddEntry`, which checks both in release builds and adds
   nothing when either is taken.
@@ -384,10 +280,12 @@ Save states copy the heap wholesale and hold no id tables. Fixed along the way:
   skips the empty ids below the custom types.
 
 Transition actors mask their id with `0x1FFF` (`z_actor.c`); names are accepted in room actors
-only, and the scene reader turns a name or a number from `0x1000` up in a transition actor into
+only, and the scene reader turns a name or a number outside 0–`0xFFF` in a transition actor into
 `-1`, which the spawn loop skips (it treats a negative id as already spawned), so custom types
 never reach that path. Room actors with a number from `0x1000` up are skipped for the same
-reason the numbers are never written: they depend on the mounted mods.
+reason the numbers are never written: they depend on the mounted mods. A negative number is
+skipped too: it names no actor, and one below −32 768 would wrap into the custom range when
+stored in the 16-bit id.
 
 ## Later phases (not in this version)
 

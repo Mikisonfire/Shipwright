@@ -125,6 +125,17 @@ void ReadHideLimbs(const std::string& key, const Json& limbs, DeclaredActorType&
     }
 }
 
+// False, logged, unless the scale is positive and finite: zero draws nothing, a negative scale turns the model inside
+// out, and the shadow size divides by it.
+bool ReadScale(const std::string& key, const Json& model, DeclaredActorType& type) {
+    type.scale = (f32)NumberField(model, K::kScale, 0.01);
+    if (!std::isfinite(type.scale) || type.scale <= 0.0f) {
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" must be a positive number", key, K::kModel, K::kScale);
+        return false;
+    }
+    return true;
+}
+
 bool ReadModel(const std::string& key, const Json& def, DeclaredActorType& type) {
     auto it = def.find(K::kModel);
     if (it == def.end() || !it->is_object()) {
@@ -150,7 +161,9 @@ bool ReadModel(const std::string& key, const Json& def, DeclaredActorType& type)
     type.holdFrame = OptionalNumber(model, K::kFrame, type.frame);
     type.speed = (f32)NumberField(model, K::kSpeed, 1.0);
     type.translucent = Field(model, K::kTranslucent) != 0;
-    type.scale = (f32)NumberField(model, K::kScale, 0.01);
+    if (!ReadScale(key, model, type)) {
+        return false;
+    }
     type.yOffset = (f32)NumberField(model, K::kYOffset);
     type.shadow = (f32)NumberField(model, K::kShadow);
     type.cullRadius = Distance(model, K::kCullRadius);
@@ -181,7 +194,7 @@ void ReadTalk(const std::string& key, const Json& def, DeclaredActorType& type) 
         message = 0;
     }
     type.message = (u16)message;
-    type.range = (f32)NumberField(*it, K::kRange, 50.0 + std::max<s16>(type.radius, 0));
+    type.talkRange = (f32)NumberField(*it, K::kRange, 50.0 + std::max<s16>(type.radius, 0));
 }
 
 bool ReadLook(const std::string& key, const Json& def, DeclaredActorType& type) {

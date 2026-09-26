@@ -28,7 +28,7 @@ struct DeclaredActorType {
     f32 speed = 1.0f;
     std::string displayList;
     bool translucent = false;
-    f32 scale = 0.01f;
+    f32 scale = 0.01f; // positive and finite
     f32 yOffset = 0.0f;
     f32 shadow = 0.0f;                                // round shadow size at scale 0.01; 0 = none
     f32 cullRadius = 0.0f;                            // world units around the origin; 0 = the default zone
@@ -44,7 +44,7 @@ struct DeclaredActorType {
     // Talk: the type can talk; a placement's message is its params when non-zero, otherwise `message`.
     bool talks = false;
     u16 message = 0;
-    f32 range = 0.0f;
+    f32 talkRange = 0.0f;
 
     // Look: the head limb (limb-draw numbering, root = 1) turns toward the player.
     bool looks = false;

@@ -17,8 +17,6 @@ and other enhancements that assume the vanilla tables may break; that is accepte
   this directory is normative.
 - The other files are *how* and *why*: they explain the engine changes behind each part of the
   spec and may change freely.
-- [`actors.md`](./actors.md) is a **proposal, not implemented**: custom actor types declared in
-  data and placed by name.
 
 ## Goals
 
@@ -51,7 +49,8 @@ facts are in the cited SPEC sections.
 | Area | Change | How-doc | SPEC |
 |---|---|---|---|
 | **Collision** | Vertex indices and poly ids are 32-bit; the N64 byte budget is gone — node tables are heap-allocated and grow on demand, freed in `Play_Destroy`. Legacy packed data is unpacked on load. Surface types and water boxes are unpacked structs. Dyna actor table and dyna poly/vertex lists grow on demand. | [`collision.md`](./collision.md) | §4.4, §8 |
-| **Scenes & entrances** | `gSceneTable`/`gEntranceTable` replaced by a runtime registry (`SceneDB`) fed from a layer-merged `unbound/scenes.json`; exit lists reference entrances by name; custom-scene save flags are stored by scene name. A scene's `horse` key replaces vanilla's hardcoded five-scene allow-list for Epona. Console: `entrance <name>`. | [`registries.md`](./registries.md) | §7, §4.2 |
+| **Actor types** | Mods add actors without C code in a layer-merged `unbound/actors.json`: each **declared** type is a new actor run by one shared driver (a skeleton with an animation or a display list, a collision cylinder, talking, head tracking). Each type is an ActorDB entry numbered from 0x1000 at load; a room actor's `id` may be any actor's name. Also: `Actor_Spawn` no longer corrupts the heap on an id with no actor, and no longer caps live actors of one type at 255. | [`actors.md`](./actors.md) | §7.2, §4.3 |
+| **Scenes & entrances** | `gSceneTable`/`gEntranceTable` replaced by a runtime registry (`SceneDB`) fed from a layer-merged `unbound/scenes.json`; exit lists reference entrances by name; custom-scene save flags are stored by scene name. A scene's `horse` key replaces vanilla's hardcoded five-scene allow-list for Epona. Console: `entrance <name>`. | [`registries.md`](./registries.md) | §7.1, §4.2 |
 | **Text** | Message tables are growable and hash-indexed; `text/<lang>/messages.json` merges across layers and can add or delete ids; message buffers 8 KB. | [`text.md`](./text.md) | §5 |
 | **Counts** | Object bank 1024; actors per room and rooms per scene 16-bit; live-actor cap real and 8192; mesh entries unbounded; room numbers 16-bit with unbounded clear flags, waterbox rooms and transition actors. Object ids past the vanilla table are usable. | [`counts.md`](./counts.md) | §9 |
 | **Scene format** | Merging JSON loader, converter, entity-key scheme and the decisions behind them. | [`scene-format.md`](./scene-format.md) | §2–§4, §6 |

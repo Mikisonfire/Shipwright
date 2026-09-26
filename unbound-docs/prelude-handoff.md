@@ -10,8 +10,8 @@ is tagged `SOH [Unbound]`.
 
 A mod can now add actor types without C code, and place them, and any actor ActorDB knows, **by
 name** in a room's `actors`. A **declared** type is a new actor drawn and run by the game (a
-model, a collision cylinder, talking, head tracking). On branch `unbound-custom-actors-mvp`,
-play-tested with a Prelude export; **not in a release yet**. Design and engine notes:
+model, a collision cylinder, talking, head tracking). On `unbound`, play-tested with a Prelude
+export; **not in a release yet**. Design and engine notes:
 [`actors.md`](./actors.md). Reference export:
 [`examples/custom-actors`](./examples/custom-actors/README.md) (every key, and every rejection).
 
@@ -23,6 +23,7 @@ play-tested with a Prelude export; **not in a release yet**. Design and engine n
 | A skeleton must be normal or flex with standard or LOD limbs, and its animation must have frames and cover every limb; otherwise no actor of the type spawns. | §7.2 | Validate at export, so the user is not left with an invisible type. |
 | A talking type's placement `params` is its **message id** (non-zero and not 0xFFFF), else `talk.message`. `params` as an object is reserved and skips the placement. | §7.2, §4.3 | Show a message picker for `params` on talking types. Write `params` as an integer. |
 | `shadow` draws on scene collision only, not on a moving platform's. | §7.2 | Nothing; mention it if the user places a shadowed actor on a platform. |
+| Distances: a negative `cullRadius`, `talk.range` or `look.range` reads as 0; a zero or negative `drawDistance` reads as its default (1000). A `hideLimbs` entry past the skeleton's last limb is ignored with an error. Stated 2026-09-26 after the first draft of §7.2; nothing changes for non-negative values. | §7.2, §10 | Write non-negative distances. Offer `hideLimbs` only from the skeleton's limb list. |
 | Unknown keys, at the top level or inside `model`, `collision`, `talk`, `look`, reject a type (`base`, `params`, `script` are reserved). | §7.2 | Emit only the keys listed. |
 | Mod-supplied display lists, skeletons, animations and textures are ordinary resources at any path (`objects/<mod>/…`, never `alt/`). An actor model is in **model space**: `scale` converts to world units (a room-style world-unit export needs `scale` 1). | §7.2 | Export actor models centred on their origin, base on the ground or offset with `yOffset`. |
 

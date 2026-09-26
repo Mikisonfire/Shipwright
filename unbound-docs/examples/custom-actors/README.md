@@ -12,7 +12,7 @@ them.
 | Placement | Type | Where | What it exercises |
 |---|---|---|---|
 | `90` | `example/carpenter` | front row, left | skeleton + looping animation, collision, talk with the type's default message (`params` 0), head tracking on limb 15 |
-| `91` | `example/malon_pose` | front row, middle | flex skeleton held on one frame, `segments` 8 and 9 (eyes, mouth), `hideLimbs` (2 and 5, as her vanilla draw code), message from `params` |
+| `91` | `example/malon_pose` | front row, middle | flex skeleton held on one frame, `segments` 8 and 9 (eyes, mouth), `hideLimbs` (2 and 5, as her vanilla draw code, and 99, past her last limb: ignored with an error), message from `params` |
 | `92` | `example/talking_pot` | front row, right | static display-list model that talks like a sign, message from `params` |
 | `96` | `example/glass_pane` | back row, left | `translucent`, and `yOffset`: the Spirit Temple mirror's glass, centred on its origin, lifted to stand on the ground |
 | `99` | `En_Kanban` | back row, right | a vanilla actor placed by name: a wooden sign. Hyrule Field's rooms already load its object (`0x12F`); a vanilla actor placed by name needs its object in the room exactly as one placed by number does |
@@ -47,11 +47,12 @@ Package with any zip tool, keeping the paths, and drop the result in SoH's `mods
   field loads, placements `93`–`95` and `102` are skipped as naming no known actor, `103` and `105`
   are skipped for their ids and `104` for its params, and `97`, `98`, `100` and `101` fail to spawn,
   each with one error naming the path it could not use ("actors of this type do not spawn"),
-  logged the first time the type spawns and not again when the field reloads.
+  logged the first time the type spawns and not again when the field reloads. Malon logs one
+  error the same way for `hideLimbs` entry 99 ("not a limb of its skeleton (1-18)") and spawns.
 - The carpenter stands in his idle loop, turns his head to follow Link within 200 units and while
-  talking, and says `0xA001` (three lines over two boxes). He and Malon cast round shadows. Malon stands still in one frame of her
-  singing pose with open eyes and a smile, no extra hands, and says `0xA002`. The pot says
-  `0xA003`. None of the three can be walked through.
+  talking, and says `0xA001` (three lines over two boxes). He and Malon cast round shadows.
+  Malon stands still in one frame of her singing pose with open eyes and a smile, no extra hands,
+  and says `0xA002`. The pot says `0xA003`. None of the three can be walked through.
 - Behind them, the round mirror glass stands on the ground, about 94 units tall, and the field
   shows through it. The sign reads as a vanilla sign.
 - The Actor Viewer (Developer Tools) finds each type by its display name, and its Spawn button

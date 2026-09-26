@@ -3,8 +3,8 @@
 Custom actor types declared in data and placed by name. The format is [`SPEC.md`](./SPEC.md) §7.2
 and §4.3; this file covers why and how. Overview in [`README.md`](./README.md).
 
-**Status:** implemented on branch `unbound-custom-actors-mvp` and play-tested 2026-09-25 (every
-item of the verification plan, in game and through a Prelude export). The test fixture is
+**Status:** on `unbound`, not yet in a release. Play-tested 2026-09-25 (every item of the
+verification plan, in game and through a Prelude export). The test fixture is
 [`examples/custom-actors`](./examples/custom-actors/README.md).
 
 ## Why
@@ -43,8 +43,8 @@ listed at the end so the format leaves room for them now.
    message id, below).
 4. **First version: declared types only.** One C driver runs every declared type, reading the
    type's settings from the registry: a model (animated or static), a collision cylinder,
-   talking, and head tracking. Types that
-   extend a vanilla actor (`base`) are a later phase; nothing in this version depends on them.
+   talking, and head tracking. Types that extend a vanilla actor (`base`) are a later phase;
+   nothing in this version depends on them.
 
 ## What a modder writes
 
@@ -116,19 +116,19 @@ format is shaped that way and how the engine implements it.
 Every Unbound release before this one reads a string `id` as the wrong type, which SPEC §2
 treats as missing: id 0, the player actor. A scene that places a custom actor by name therefore
 spawns an extra Link on those builds instead of being refused, and `requires.formatVersion`
-cannot prevent it, because a layer that fails the version check is still merged (SPEC §6). Mods that use custom actors need the
-release that adds them. Prelude should say so when it exports one, and the release notes should
-say it too. Builds with this change skip any name they do not know, so the problem does not recur
-for later additions.
+cannot prevent it, because a layer that fails the version check is still merged (SPEC §6). Mods
+that use custom actors need the release that adds them. Prelude should say so when it exports
+one, and the release notes should say it too. Builds with this change skip any name they do not
+know, so the problem does not recur for later additions.
 
 ## Engine design
 
 ### Registry
 
-- A new loader, `soh/soh/unbound/ActorRegistry.{h,cpp}`, reads the merged `unbound/actors.json`
-  through `Unbound::LoadMergedJson` (the same path as `SceneDB::LoadCustomScenes`), validates each
-  entry into a `DeclaredActorType` struct, and registers it with ActorDB. Each entry is
-  registered in its own `try`, so one bad entry is logged and skipped and the rest load.
+- `soh/soh/unbound/ActorRegistry.{h,cpp}` reads the merged `unbound/actors.json`, validates each
+  entry into a `DeclaredActorType` struct, and registers it with ActorDB. It walks the registry
+  with `Unbound::ForEachRegistryEntry`, which `SceneDB::LoadCustomScenes` shares: each entry is
+  read in its own `try`, so one bad entry is logged and skipped and the rest load.
 - **Load point: after `ActorDB::AddBuiltInCustomActors()`** in `OTRGlobals.cpp`. `InitMods()`
   runs before it today (mods are mounted, then `LoadCustomScenes` runs from `UpdateModFiles`), so
   loading from the same place as scenes would number the mod types *before* SoH's own `En_Partner`.
@@ -137,12 +137,13 @@ for later additions.
 - **Ids start at `kCustomActorIdBase` (0x1000)**, like custom scenes start at 128. That keeps
   them clear of the vanilla table, of `ACTOR_ID_MAX` (a "no actor" sentinel in randomizer code),
   of SoH's built-in custom actors, and of forks that took fixed ids just past the vanilla table.
-  This needs a public ActorDB call that registers at a given index; `AddEntry(name, desc, index)`
-  exists but is private.
-- **Duplicate names:** `ActorDB::AddEntry` `assert`s on a name it already has. The registry checks
-  `RetrieveId` first and rejects the entry instead. Two mods declaring the same key are not
-  duplicates: the merge (SPEC §3) combines them into one entry before registration, so the later mod
-  patches the earlier one's type.
+  The registry registers each type with `ActorDB::TryAddEntry(init, id)`, at the next id after the
+  types already registered.
+- **Duplicate names:** `ActorDB::AddEntry` `assert`s on a name or id it already has, which release
+  builds drop. The registry rejects a key `RetrieveId` already knows, and `TryAddEntry` checks the
+  name and the id again in every build, adding nothing when either is taken. Two mods declaring the
+  same key are not duplicates: the merge (SPEC §3) combines them into one entry before
+  registration, so the later mod patches the earlier one's type.
 - Every registered type is its own ActorDB entry, with its own id, name, description and flags,
   pointing at the shared driver functions. Flags: `ACTOR_FLAG_ATTENTION_ENABLED |
   ACTOR_FLAG_FRIENDLY` when the type talks. Category: `ACTORCAT_NPC` when it talks, otherwise
@@ -154,9 +155,11 @@ for later additions.
 ### Name resolution in scenes
 
 `BuildActorList` in `UnboundSceneFactory.cpp` resolves a string `id` through
-`ActorDB_RetrieveId`. `ReadActor` is also used for spawns (`BuildStartPositions`), which must stay
-integer, so resolution happens in `BuildActorList` and not in `ReadActor`. An unknown name logs
-the room, the entry key and the name, and the entry is not added to the list.
+`ActorDB::RetrieveId` (`ResolveRoomActor`). `ReadActor` is also used for spawns
+(`BuildStartPositions`), which must stay integer, so resolution happens in `BuildActorList` and not
+in `ReadActor`. An unknown name logs the room, the entry key and the name, and the entry is not
+added to the list. The same step skips an integer `id` outside 0–`0xFFF` and an object `params`
+(SPEC §4.3); `BuildTransitionActors` turns a name or an out-of-range number into `-1`.
 
 Scene resources are parsed when a scene loads, long after the registry is built, so there is no
 ordering problem. Vanilla-format (binary) scenes store a numeric id and cannot name a custom
@@ -186,7 +189,8 @@ Destroy: free the skeleton and the collider, if they were set up
   reads one), an animation must be a normal one (not Link's) with at least one frame and at least
   one joint entry per joint-table entry (`rotationIndices.size() >= limbCount + 1`, the
   skeleton's limbs plus the root position: `SkelAnime_GetFrameData` reads that many), a display
-  list and a segment texture must be one. The same pass checks `look.limb` against the limb count.
+  list and a segment texture must be one. The same pass checks `look.limb` and `hideLimbs`
+  against the limb count.
   `CheckedType` keeps the result for the session, keyed by the type's address: mods are mounted
   only at startup, so neither the registry nor its assets change, and a bad path is logged once
   rather than for every placement. A wrong or missing asset kills every actor of the type instead
@@ -297,10 +301,9 @@ an older build rejects a type it cannot run instead of placing an actor that doe
    built unlike vanilla's.
 2. **Mesh collision for static models.** Decided against for v1. A cylinder is enough for trees,
    signs and statues, but a rock the player can stand on, a bridge or a platform needs its model's
-   shape as collision:
-   `collision.mesh` naming a collision resource, registered as a dynamic collision actor
-   (`DynaPolyActor`, the way vanilla's movable blocks and platforms work). Prelude would have to
-   export a collision resource per model.
+   shape as collision: `collision.mesh` naming a collision resource, registered as a dynamic
+   collision actor (`DynaPolyActor`, the way vanilla's movable blocks and platforms work). Prelude
+   would have to export a collision resource per model.
 3. **Named params.** A type declares named fields packed into `params`
    (`"params": { "message": { "bits": "0-15" } }`) and Prelude shows a form field for each. Scripts
    will need per-placement arguments; this is how they get them without a separate property

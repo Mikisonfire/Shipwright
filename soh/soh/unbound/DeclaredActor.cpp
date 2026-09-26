@@ -188,6 +188,17 @@ bool LookLimbValid(const DeclaredActorType& type, s32 limbCount) {
     return true;
 }
 
+// Logs each hidden limb past the skeleton's last limb. Such an entry hides nothing; the registry already refused
+// entries below 1.
+void CheckHiddenLimbs(const DeclaredActorType& type, s32 limbCount) {
+    for (s32 limb : type.hideLimbs) {
+        if (limb > limbCount) {
+            SPDLOG_ERROR("[Unbound] actor type '{}': hideLimbs entry {} is not a limb of its skeleton (1-{}); ignored",
+                         type.name, limb, limbCount);
+        }
+    }
+}
+
 TypeCheck CheckType(const DeclaredActorType& type) {
     TypeCheck check;
     if (!SegmentsUsable(type)) {
@@ -205,6 +216,7 @@ TypeCheck CheckType(const DeclaredActorType& type) {
         check.spawns = true;
         check.flex = skeleton->type == SOH::SkeletonType::Flex;
         check.looks = LookLimbValid(type, skeleton->limbCount);
+        CheckHiddenLimbs(type, skeleton->limbCount);
     }
     return check;
 }
@@ -504,9 +516,11 @@ void DrawDisplayList(DeclaredActor* self, PlayState* play) {
 
 } // namespace
 
+// ---- display lists and ActorDB functions --------------------------------------------------------------------------
+
 // OPEN_DISPS declares the frame-interpolation hooks at block scope. Inside an anonymous namespace that declaration
-// names a function of the namespace, which nothing defines, so the functions that open the display lists live
-// outside it.
+// names a function of the namespace, which nothing defines, so the functions that open the display lists, and the
+// ActorDB functions that call them, are file-local statics outside it.
 static void DrawSkeleton(DeclaredActor* self, PlayState* play) {
     SkelAnime* skel = &self->skelAnime;
     if (!self->type->translucent) {
@@ -536,11 +550,7 @@ static void DrawSegments(DeclaredActor* self, PlayState* play) {
     CLOSE_DISPS(play->state.gfxCtx);
 }
 
-namespace {
-
-// ---- ActorDB functions --------------------------------------------------------------------------------------------
-
-void DeclaredActor_Init(Actor* thisx, PlayState* play) {
+static void DeclaredActor_Init(Actor* thisx, PlayState* play) {
     DeclaredActor* self = (DeclaredActor*)thisx;
     if (!ResolveType(self) || !CanSpawn(self)) {
         return;
@@ -552,7 +562,7 @@ void DeclaredActor_Init(Actor* thisx, PlayState* play) {
     InitFocus(self);
 }
 
-void DeclaredActor_Destroy(Actor* thisx, PlayState* play) {
+static void DeclaredActor_Destroy(Actor* thisx, PlayState* play) {
     DeclaredActor* self = (DeclaredActor*)thisx;
     if (self->hasSkeleton) {
         SkelAnime_Free(&self->skelAnime, play);
@@ -562,7 +572,7 @@ void DeclaredActor_Destroy(Actor* thisx, PlayState* play) {
     }
 }
 
-void DeclaredActor_Update(Actor* thisx, PlayState* play) {
+static void DeclaredActor_Update(Actor* thisx, PlayState* play) {
     DeclaredActor* self = (DeclaredActor*)thisx;
     UpdateTalk(self, play);
     UpdateLook(self, play);
@@ -570,7 +580,7 @@ void DeclaredActor_Update(Actor* thisx, PlayState* play) {
     UpdateAnimation(self);
 }
 
-void DeclaredActor_Draw(Actor* thisx, PlayState* play) {
+static void DeclaredActor_Draw(Actor* thisx, PlayState* play) {
     DeclaredActor* self = (DeclaredActor*)thisx;
     DrawSegments(self, play);
     if (self->hasSkeleton) {
@@ -579,8 +589,6 @@ void DeclaredActor_Draw(Actor* thisx, PlayState* play) {
         DrawDisplayList(self, play);
     }
 }
-
-} // namespace
 
 ActorDBInit DeclaredActor_DBInit(const DeclaredActorType& type) {
     ActorDBInit init;

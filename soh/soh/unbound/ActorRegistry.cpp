@@ -1,5 +1,5 @@
-// SOH [Unbound] unbound/actors.json -> DeclaredActorType -> ActorDB. The rules each reader enforces are the
-// "Proposed SPEC text" of unbound-docs/actors.md.
+// SOH [Unbound] unbound/actors.json -> DeclaredActorType -> ActorDB. The rules each reader enforces are
+// unbound-docs/SPEC.md §7.2.
 #include "ActorRegistry.h"
 
 #include <algorithm>
@@ -35,9 +35,9 @@ std::string ReadPath(const Json& obj, const char* key) {
     return path.empty() ? path : DeclaredActorType::kOtrPrefix + path;
 }
 
-// A distance the entry may give in world units: absent, unreadable or negative reads as 0 (the default).
-f32 Distance(const Json& obj, const char* key) {
-    return std::max((f32)NumberField(obj, key), 0.0f);
+// A distance in world units: absent or unreadable reads as `fallback`, negative as 0.
+f32 Distance(const Json& obj, const char* key, double fallback = 0.0) {
+    return std::max((f32)NumberField(obj, key, fallback), 0.0f);
 }
 
 s16 ClampS16(int64_t value) {
@@ -194,7 +194,7 @@ void ReadTalk(const std::string& key, const Json& def, DeclaredActorType& type) 
         message = 0;
     }
     type.message = (u16)message;
-    type.talkRange = (f32)NumberField(*it, K::kRange, 50.0 + std::max<s16>(type.radius, 0));
+    type.talkRange = Distance(*it, K::kRange, 50.0 + std::max<s16>(type.radius, 0));
 }
 
 bool ReadLook(const std::string& key, const Json& def, DeclaredActorType& type) {
@@ -214,7 +214,7 @@ bool ReadLook(const std::string& key, const Json& def, DeclaredActorType& type) 
     type.looks = true;
     type.limb = (s32)Field(*it, K::kLimb);
     type.pivot = (f32)NumberField(*it, K::kPivot);
-    type.lookRange = (f32)NumberField(*it, K::kRange, 200.0);
+    type.lookRange = Distance(*it, K::kRange, 200.0);
     return true;
 }
 

@@ -535,10 +535,10 @@ both, or neither, **rejects the entry**.
 | `scale` | positive number; default 0.01 (the scale of most vanilla NPCs). Zero or a negative number **rejects the entry**. |
 | `yOffset` | number: model-space vertical offset, applied before scale; default 0 |
 | `segments` | object: key a segment number 8–12 as a §2 integer string, value a texture path, bound before the model draws (NPC eye and mouth textures). Any other key, and a value that is not a non-empty string, is ignored with an error. A path that is not a texture stops actors of the type from spawning, as any other path does. A segment 8–12 the type does not name is bound to an empty display list, which is what vanilla binds on the segment many character models call to set their render mode. The environment colour is opaque black while the model draws. |
-| `hideLimbs` | array of integers: limbs, numbered as `look.limb` is, whose own mesh is not drawn; their child limbs still draw. Vanilla character code hides spare hands and props it swaps in (Malon's limbs 2 and 5, child Zelda's 3–6). Entries below 1 are ignored with an error. |
+| `hideLimbs` | array of integers: limbs, numbered as `look.limb` is, whose own mesh is not drawn; their child limbs still draw. Vanilla character code hides spare hands and props it swaps in (Malon's limbs 2 and 5, child Zelda's 3–6). Entries below 1, or past the skeleton's last limb, are ignored with an error. |
 | `shadow` | number: size of a round ground shadow, on the scale vanilla NPCs give theirs (child Malon 18, the carpenter 42); default 0 = none. It does not change with `scale`: the same value draws the same shadow on any model. The shadow is drawn on the floor under the actor's position when it spawns, when that floor is scene collision (not a moving platform) and at most 50 units above or 500 below it. |
-| `cullRadius` | number, world units: how far the model reaches from the actor's position. The game stops drawing an actor whose position is off screen by more than about 350 units, which cuts off larger models at the screen edge; a larger `cullRadius` widens that margin. Default 0 = the game's default. |
-| `drawDistance` | number, world units: the actor stops drawing (and updating) beyond about this distance in front of the camera, plus `cullRadius`. Default 1000, the game's default. |
+| `cullRadius` | number, world units: how far the model reaches from the actor's position. The game stops drawing an actor whose position is off screen by more than about 350 units, which cuts off larger models at the screen edge; a larger `cullRadius` widens that margin. Default 0 = the game's default; a negative value reads as 0. |
+| `drawDistance` | number, world units: the actor stops drawing (and updating) beyond about this distance in front of the camera, plus `cullRadius`. Default 1000, the game's default; 0 or a negative value reads as the default. |
 
 Asset paths are resolved when the first actor of the type spawns, not when the registry loads. A
 path that does not resolve stops every actor of the type from spawning, with one error; it does not
@@ -571,7 +571,7 @@ model the mod ships:
 | Key | Type / meaning |
 |---|---|
 | `message` | integer message id 0–65534 (§5): the default text. Default 0 = none, in which case only placements that set `params` talk. A value outside the range reads as 0, with an error. |
-| `range` | number: talk range in world units; default 50 + `collision.radius` (vanilla's default) |
+| `range` | number: talk range in world units; default 50 + `collision.radius` (vanilla's default). A negative value reads as 0. |
 
 The message shown is `params` (read as unsigned 16-bit) when it is non-zero and not `0xFFFF`,
 otherwise `talk.message`. When both are zero the actor cannot be talked to. A message that does
@@ -583,7 +583,7 @@ not exist shows whatever the game shows for a missing id, as with any actor.
 |---|---|
 | `limb` | integer: the head limb, numbered as vanilla limb-draw code numbers limbs (the root limb is 1; vanilla NPC heads are usually 15). Required: absent, or not a limb of the skeleton, the actor spawns without head tracking and an error is logged. |
 | `pivot` | number: distance along the head limb's X axis, in model units, from the limb's origin to the point the head turns about. Default 0, the limb's origin, which is the neck on vanilla rigs. |
-| `range` | number: the head follows the player within this distance, in world units, and while talking; outside it the head returns to rest. Default 200. |
+| `range` | number: the head follows the player within this distance, in world units, and while talking; outside it the head returns to rest. Default 200. A negative value reads as 0. |
 
 The head turns about the limb's own axes the way vanilla character rigs are built: turning left
 and right about the limb's X axis, and up and down about its Z axis. A skeleton made another way
@@ -739,3 +739,8 @@ Limits that remain (validation targets for tools):
   `requires.formatVersion` cannot prevent it, because a layer that fails the version check is still
   merged (§6). Tools should state the minimum reader when they write a name. A reader with the
   registry skips any name it does not know, so later additions do not repeat this.
+- Version-2 clarification (2026-09-26, actor types, before any release): §7.2 now states that a
+  negative `model.cullRadius`, `talk.range` or `look.range` reads as 0, and a zero or negative
+  `model.drawDistance` as its default. A negative `look.range` previously acted as its absolute
+  value. A `hideLimbs` entry past the skeleton's last limb, which never hid anything, now also logs
+  an error. No document with non-negative distances changes meaning and none is rejected.

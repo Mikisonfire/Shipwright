@@ -120,24 +120,26 @@ One layer-merged document (§3), keyed by actor type name. Like §7, it carries 
 | `collision` | no | object (below); absent = the actor has no collision and can be walked through |
 | `talk` | no | object (below); absent = the actor cannot be targeted or talked to |
 | `look` | no | object (below): the head turns to follow the player. Needs a `model.skeleton`; on a static model it **rejects the entry**. |
-| any other key | — | **rejects the entry**. Keys this version does not define are reserved for later versions (`base`, `params`, `script`). A build that predates a key therefore rejects the type, and its placements are skipped as unknown names, instead of spawning an actor without the behavior. |
+| any other key | — | **rejects the entry**. Keys this version does not define are reserved for later versions (`base`, `params`, `script`). A build that predates a key therefore rejects the type, and its placements are skipped as unknown names, instead of spawning an actor without the behavior. The same rule holds inside `model`, `collision`, `talk` and `look`: a key none of the tables below lists rejects the entry. |
 
 **`model`** — exactly one of `skeleton` (an animated model) or `displayList` (a static model);
 both, or neither, **rejects the entry**.
 
 | Key | Type / meaning |
 |---|---|
-| `skeleton` | path of a skeleton resource, normal or flex. A curve skeleton is not supported: the actor does not spawn and an error is logged. |
-| `animation` | path of an animation for `skeleton`, with the skeleton's limb count. Required with `skeleton`: absent **rejects the entry**, because an OoT skeleton has no usable rest pose (with every joint angle zero it folds up). For a still model, hold one frame with `frame`. Ignored with `displayList`. |
+| `skeleton` | path of a skeleton resource, normal or flex, with standard or LOD limbs. A curve skeleton, or one with skin limbs (Epona's), is not supported: the actor does not spawn and an error is logged. |
+| `animation` | path of an animation for `skeleton`, with the skeleton's limb count. Required with `skeleton`: absent **rejects the entry**, because an OoT skeleton has no usable rest pose (with every joint angle zero it folds up). An animation for fewer limbs than the skeleton has stops the actor from spawning, with an error. For a still model, hold one frame with `frame`. Ignored with `displayList`. |
 | `frame` | number: when present, the animation is held on this frame (a pose), clamped to the animation's first and last frames; absent, the animation loops |
-| `speed` | number: playback rate for a looping animation; default 1 |
+| `speed` | number: playback rate for a looping animation, in frames per update; default 1. Clamped to the animation's length either way (negative plays backwards). |
 | `displayList` | path of a display list: the whole model, drawn as it is |
-| `translucent` | boolean: draw in the translucent pass instead of the opaque one, for models with real transparency (glass, ghosts, water). Default false. Cut-out transparency such as leaves and fences does not need it: the display list's own render mode handles that in the opaque pass. |
+| `translucent` | boolean: draw in the translucent pass instead of the opaque one, for models with real transparency (glass, ghosts, water). Default false. Cut-out transparency such as leaves and fences does not need it: the display list's own render mode handles that in the opaque pass. The model's own render mode decides whether it blends: a vanilla character model, which sets an opaque mode, is only sorted with the translucent pass and does not turn see-through. |
 | `scale` | number; default 0.01 (the scale of most vanilla NPCs) |
 | `yOffset` | number: model-space vertical offset, applied before scale; default 0 |
-| `segments` | object: key a segment number 8–12 as a §2 integer string, value a texture path, bound before the model draws (NPC eye and mouth textures). Any other key is ignored with an error. A segment 8–12 the type does not name is bound to an empty display list, which is what vanilla binds on the segment many character models call to set their render mode. The environment colour is opaque black while the model draws. |
+| `segments` | object: key a segment number 8–12 as a §2 integer string, value a texture path, bound before the model draws (NPC eye and mouth textures). Any other key, and a value that is not a non-empty string, is ignored with an error. A path that is not a texture stops the actor from spawning, as any other path does. A segment 8–12 the type does not name is bound to an empty display list, which is what vanilla binds on the segment many character models call to set their render mode. The environment colour is opaque black while the model draws. |
 | `hideLimbs` | array of integers: limbs, numbered as `look.limb` is, whose own mesh is not drawn; their child limbs still draw. Vanilla character code hides spare hands and props it swaps in (Malon's limbs 2 and 5, child Zelda's 3–6). Entries below 1 are ignored with an error. |
-| `shadow` | number: radius of a round ground shadow; default 0 = none |
+| `shadow` | number: size of a round ground shadow, on the scale vanilla NPCs give theirs (child Malon 18, the carpenter 42); default 0 = none. It does not change with `scale`: the same value draws the same shadow on any model. The shadow is drawn on the floor under the actor's position when it spawns, when that floor is at most 50 units above or 500 below it. |
+| `cullRadius` | number, world units: how far the model reaches from the actor's position. The game stops drawing an actor whose position is off screen by more than about 350 units, which cuts off larger models at the screen edge; a larger `cullRadius` widens that margin. Default 0 = the game's default. |
+| `drawDistance` | number, world units: the actor stops drawing (and updating) beyond about this distance in front of the camera, plus `cullRadius`. Default 1000, the game's default. |
 
 Asset paths are resolved when an actor of the type spawns, not when the registry loads. A path
 that does not resolve stops that actor from spawning, with an error; it does not reject the type.
@@ -200,13 +202,24 @@ name only.
 > `id` is an integer (§2) **or an actor name**: a string that is not an integer in the §2 string
 > form names an actor type, either one registered in `unbound/actors.json` or an actor the game
 > already knows by name. An entry whose name is not known is skipped with an error, and the rest
-> of the list loads. Names are accepted in room `actors` only; spawns and transition actors keep
-> integer ids. A name changes nothing else about the actor: a vanilla actor placed by name still
-> needs its object in the room's `objects`, as when it is placed by number. A declared type needs
-> none.
+> of the list loads. A name changes nothing else about the actor: a vanilla actor placed by name
+> still needs its object in the room's `objects`, as when it is placed by number. A declared type
+> needs none.
+>
+> An integer `id` must be below `0x1000`. Numbers from `0x1000` up are assigned to registered
+> types at load and change with the mounted mods, so an entry that uses one is skipped with an
+> error; such actors are placed by name.
+>
+> Names are accepted in room `actors` only; spawns and transition actors keep integer ids. A
+> transition actor whose `id` is a name, or a number from `0x1000` up, does not spawn, with an
+> error; it keeps its place in the list, whose indices other data refers to.
+>
+> `params` as an object is reserved for named arguments in a later version. An entry whose
+> `params` is an object is skipped with an error.
 
-(Before this change such a string had the wrong type and read as missing — id 0, the player
-actor. No valid document changes meaning.)
+(Before this change a string had the wrong type and read as missing — id 0, the player actor.
+Integer ids from `0x1000` up named no actor. A document that relied on either changes meaning; no
+valid document did.)
 
 ### §9 — limits
 
@@ -271,7 +284,8 @@ Each behavior is its own small function taking the instance and its type, so the
 functions read as a list of steps, and so a script can later call the same functions:
 
 ```
-Init:    ResolveType → InitModel → InitCollision → InitTalk → InitLook → InitFocus
+Init:    ResolveType → InitModel (InitShape → InitFloor → InitCulling → InitSegments → InitMesh)
+         → InitCollision → InitTalk → InitLook → InitFocus
 Update:  UpdateTalk → UpdateLook → UpdateCollision → UpdateAnimation
 Draw:    DrawSegments → DrawSkeleton or DrawDisplayList (limb callbacks: TurnHead, RecordHeadFocus)
 Destroy: free the skeleton and the collider, if they were set up
@@ -282,22 +296,39 @@ Destroy: free the skeleton and the collider, if they were set up
   registration, and those strings live as long as the registry, so the driver passes them
   anywhere vanilla code passes an asset symbol.
 - **Checking assets.** Before using a path, the driver loads the resource and checks its type:
-  a skeleton must be normal or flex (`SOH::Skeleton::type`), an animation must be a normal one
-  (not Link's), a display list must be one. A wrong or missing asset kills that actor with an
-  error instead of handing the game a bad pointer.
+  a skeleton must be normal or flex (`SOH::Skeleton::type`) with standard or LOD limbs
+  (`limbType`: a skin limb has no display list where the skeleton drawer reads one), an
+  animation must be a normal one (not Link's) with at least one joint entry per joint-table
+  entry (`rotationIndices.size() >= skelAnime.limbCount`, the skeleton's limbs plus the root
+  position: `SkelAnime_GetFrameData` reads that many), a display list and a segment texture must
+  be one. A wrong or missing asset kills that actor with an error instead of handing the game a
+  bad pointer.
 - **Model.** The skeleton resource records its type and limb count, so `InitModel` chooses
   `SkelAnime_InitFlex` or `SkelAnime_Init` at runtime and lets it
   allocate the joint tables (`SkelAnime_Free` in destroy). Looping is
-  `Animation_Change(..., ANIMMODE_LOOP, ...)` at `speed`. A pose is the same call with speed 0,
-  starting and ending on `frame`. `ActorShape_Init` applies
-  `yOffset` and the circle shadow.
+  `Animation_Change(..., ANIMMODE_LOOP, ...)` at `speed`, clamped to the animation's length:
+  `SkelAnime_LoopFull` wraps the frame once per update, so a longer step would leave the
+  animation's data. A pose is the same call with speed 0, starting and ending on `frame`.
+- **Shadow.** `ActorShape_Init` applies `yOffset` and the circle shadow. `ActorShadow_Draw`
+  scales the shadow by the actor's scale and draws only over `actor->floorPoly`, which vanilla
+  actors get from `Actor_UpdateBgCheckInfo`. The driver never runs that (it would move the actor
+  onto the floor), so `InitFloor` does one `BgCheck_EntityRaycastFloor5` from 50 units above the
+  position, as the vanilla check does, and records the floor only. The shadow scale is
+  `shadow × 0.01 / scale`, so `shadow` means the same at any `scale`.
+- **Culling.** `Actor_Init` gives every actor a zone of 1 000 forward, 350 to the sides and up,
+  700 down. `InitCulling` raises the side, up and down margins to `cullRadius` and sets the
+  forward distance to `drawDistance`, as vanilla scenery does by hand (`EnWood02`: 4 000 / 2 000
+  / 2 400).
 - **Draw pass.** A static model is `Gfx_DrawDListOpa` or, with `translucent`, `Gfx_DrawDListXlu`.
   An animated model is `SkelAnime_DrawOpa`/`SkelAnime_DrawFlexOpa`, or with `translucent` the
   `Gfx*`-returning `SkelAnime_Draw`/`SkelAnime_DrawFlex` writing into `POLY_XLU_DISP`, as vanilla
   translucent actors do. `BindSegments` writes to the same pass.
 - **Segments.** `BindSegments` first binds every segment 8–12 to `gEmptyDL`, then issues
   `gSPSegment` for each entry, exactly as vanilla NPC draw code does for eyes and mouths, and sets
-  the env colour to opaque black. Character models such as adult Ruto's, adult Zelda's and
+  the env colour to opaque black. The empty default is bound in the translucent pass too: vanilla
+  binds its translucent render mode (`D_80116280`) there only while fading an actor out through
+  env alpha, which the driver has no use for, so a character model drawn translucent keeps its
+  opaque render mode. Character models such as adult Ruto's, adult Zelda's and
   Darunia's call a segment to set their render mode; vanilla binds `&D_80116280[2]` there, which
   is an end-of-list (entries 0–1 are the translucent mode used while fading). Without a default
   the segment would hold whatever the previous actor bound. Segment 13 is excluded because flex
@@ -309,10 +340,15 @@ Destroy: free the skeleton and the collider, if they were set up
   gravity or floor check: the actor stays exactly where it was placed.
 - **Talk.** The standard vanilla sequence. When not talking, offer to talk with
   `func_8002F2CC(actor, play, range)` and keep `actor->textId` set. `Actor_ProcessTalkRequest`
-  starts talking; the Player actor opens the textbox. `Actor_TextboxIsClosing` returns to idle.
-  Multi-box text and follow-up messages chained by control codes need nothing extra. A choice
-  box closes the conversation whatever the answer, because there is no behavior to branch to yet.
-  That limit is intentional.
+  starts talking; the Player actor opens the textbox. Whether the actor is talking is read from
+  the Player every frame (`PLAYER_STATE1_TALKING` and `player->talkActor`), not latched on
+  `Actor_TextboxIsClosing`: that is true for one frame only, and an actor culled on that frame
+  never updates to see it. Multi-box text and follow-up messages chained by control codes need
+  nothing extra. A choice box closes the conversation whatever the answer, because there is no
+  behavior to branch to yet; `Message_Update` closes it. A box that ends in an event (or is
+  persistent) waits for its actor, so the driver closes it when the player advances
+  (`TEXT_STATE_EVENT` and `Message_ShouldAdvance`), as vanilla actors do. These limits are
+  intentional.
 - **Look.** The same pattern as vanilla NPCs, which all hard-code it per actor (`EnKo`, `EnMa1`,
   `EnToryo`, … usually on limb 15). `UpdateLook` calls `Npc_TrackPoint` (preset 0: 60° of head
   yaw) in `NPC_TRACKING_HEAD` mode while the player is within `range` or talking, and in
@@ -341,13 +377,17 @@ Save states copy the heap wholesale and hold no id tables. Fixed along the way:
   with no actor (a gap below `0x1000`, a typo in a scene, a debug-console or Crowd Control spawn)
   allocated a zero-size actor and wrote past it. It now logs and spawns nothing.
 - `ActorDB::AddEntry` `assert`s on a duplicate id or name, which also vanish in release. The
-  registry checks both itself and rejects the entry.
+  registry registers through `ActorDB::TryAddEntry`, which checks both in release builds and adds
+  nothing when either is taken.
 - Actor Viewer: *Spawn as Child* refused every id past the vanilla table (`En_Partner`'s too), and
   the search-result list looped forever at 256+ results because of a `u8` index. Its search also
   skips the empty ids below the custom types.
 
 Transition actors mask their id with `0x1FFF` (`z_actor.c`); names are accepted in room actors
-only, so custom types never reach that path.
+only, and the scene reader turns a name or a number from `0x1000` up in a transition actor into
+`-1`, which the spawn loop skips (it treats a negative id as already spawned), so custom types
+never reach that path. Room actors with a number from `0x1000` up are skipped for the same
+reason the numbers are never written: they depend on the mounted mods.
 
 ## Later phases (not in this version)
 
@@ -387,8 +427,7 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 ## Open questions
 
 1. **`params` for a type that does not talk.** v1 ignores it. Fine until named params exist.
-2. **Culling.** Declared actors get the default culling volume, so a very large model can vanish
-   at the screen edge. Add a `model.cullRadius` if it shows up in practice.
+2. **Culling.** Resolved: `model.cullRadius` and `model.drawDistance`.
 
 ## What Prelude needs
 
@@ -400,8 +439,10 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 - Preview: draw the skeleton in the chosen animation frame, or the display list.
 - For `look`: let the user pick the head limb from the skeleton's limb list, numbered from 1 at
   the root (vanilla limb-draw numbering), since the index differs between rigs.
-- Validate: skeleton is normal or flex, animation limb count matches the skeleton, the talk
-  message exists in the mod's text, `params` for a talking type is a message id.
+- Validate: skeleton is normal or flex with standard or LOD limbs, animation limb count matches
+  the skeleton, the talk message exists in the mod's text, `params` for a talking type is a
+  message id.
+- Offer `cullRadius` (from the model's bounds) and `drawDistance` for large props.
 - Record the change in [`prelude-handoff.md`](./prelude-handoff.md) when it lands.
 
 ## Verification plan
@@ -418,7 +459,13 @@ an older build rejects a type it cannot run instead of placing an actor that doe
    over the head.
 6. Errors: unknown name in a room (entry skipped, room loads); duplicate of a vanilla name
    (entry rejected); a bad skeleton path (that actor does not spawn, the rest of the room does);
-   an unknown key such as `base` (entry rejected); `look` on a static model (entry rejected); a
-   skeleton with no animation (entry rejected).
-7. No-mod parity: with no `unbound/actors.json`, ActorDB, `En_Partner`'s id and vanilla rooms are
+   an unknown key such as `base`, or `model.lod` inside an object (entry rejected); `look` on a
+   static model (entry rejected); a skeleton with no animation (entry rejected); a skin-limb
+   skeleton, or an animation for fewer limbs (that actor does not spawn); a room actor with id
+   `0x1000` or object `params` (entry skipped).
+7. Shadows: a type with `shadow` draws a round shadow on the ground under it, the same size at
+   any `scale`.
+8. An event-ended message closes when advanced; after a conversation the actor can be talked to
+   again, also after walking away mid-close.
+9. No-mod parity: with no `unbound/actors.json`, ActorDB, `En_Partner`'s id and vanilla rooms are
    unchanged.

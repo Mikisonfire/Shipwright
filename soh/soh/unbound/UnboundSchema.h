@@ -253,8 +253,8 @@ inline constexpr const char* kLayers = "layers";
 inline constexpr const char* kHorse = "horse";
 inline constexpr const char* kAngle = "angle";
 
-// Actor registry (unbound-docs/actors.md): unbound/actors.json. `kName`, `kCollision`, `kRadius`, `kHeight` and
-// `kSpeed` are shared with the entries above.
+// Actor registry (unbound-docs/actors.md): unbound/actors.json. `kName`, `kCollision`, `kRadius`, `kHeight`,
+// `kSpeed` and `kDrawDistance` are shared with the entries above.
 inline constexpr const char* kActorRegistryPath = "unbound/actors.json";
 inline constexpr const char* kModel = "model";
 inline constexpr const char* kTalk = "talk";
@@ -269,6 +269,7 @@ inline constexpr const char* kYOffset = "yOffset";
 inline constexpr const char* kSegments = "segments";
 inline constexpr const char* kHideLimbs = "hideLimbs";
 inline constexpr const char* kShadow = "shadow";
+inline constexpr const char* kCullRadius = "cullRadius";
 inline constexpr const char* kYShift = "yShift";
 inline constexpr const char* kMessage = "message";
 inline constexpr const char* kRange = "range";

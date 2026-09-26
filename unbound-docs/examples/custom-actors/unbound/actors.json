@@ -63,5 +63,22 @@
       "skeleton": "objects/object_toryo/object_toryo_Skel_007150",
       "animation": "objects/object_ma1/gMalonChildEyeOpenTex"
     }
+  },
+  "example/skin_skeleton": {
+    "name": "Example: a skin-limb skeleton (does not spawn)",
+    "model": {
+      "skeleton": "objects/object_horse/gEponaSkel",
+      "animation": "objects/object_horse/gEponaIdleAnim"
+    }
+  },
+  "example/too_few_joints": {
+    "name": "Example: an animation for a smaller skeleton (does not spawn)",
+    "model": {
+      "skeleton": "objects/object_ma1/gMalonChildSkel",
+      "animation": "objects/object_toryo/object_toryo_Anim_000E50"
+    }
+  },
+  "example/later_model_key": {
+    "model": { "displayList": "objects/gameplay_dangeon_keep/gPotDL", "lod": "later" }
   }
 }

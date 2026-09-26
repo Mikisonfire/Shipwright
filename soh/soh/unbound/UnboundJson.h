@@ -1,6 +1,7 @@
 #pragma once
 // SOH [Unbound] Layer-merged JSON documents and the shared readers of the Unbound schema.
 // Merge rules: unbound-docs/SPEC.md §3. Key names: UnboundSchema.h.
+#include <functional>
 #include <nlohmann/json.hpp>
 #include <stdexcept>
 #include <string>
@@ -26,6 +27,12 @@ void MergeJson(Json& base, const Json& overlay);
 // directives and every null (a null is a deletion, also in a single layer, §3.2). Returns a null
 // Json when no archive has the path or nothing parses.
 Json LoadMergedJson(const std::string& path);
+
+// Loads the layer-merged registry at `path` (§7) and calls `add` on each entry that is an object, in registry order
+// (§3.5). A JSON error inside one entry is logged against `what` and skips only that entry. Returns how many
+// entries `add` accepted.
+size_t ForEachRegistryEntry(const std::string& path, const char* what,
+                            const std::function<bool(const std::string& key, const Json& entry)>& add);
 
 // Keys of a keyed/positional list in engine order: "$order" first (those that exist, each once),
 // then the remaining keys with integer keys ascending numerically before non-integer keys

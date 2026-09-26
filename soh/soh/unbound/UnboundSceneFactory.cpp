@@ -8,6 +8,7 @@
 #include "UnboundFactories.h"
 #include "UnboundJson.h"
 #include "UnboundSchema.h"
+#include "soh/unbound/ActorRegistry.h"
 #include "soh/unbound/SceneDB.h"
 #include "soh/ActorDB.h"
 
@@ -88,6 +89,18 @@ struct CommandBuilder {
 
 std::shared_ptr<Ship::IResource> LoadSub(const std::string& path) {
     return Ship::Context::GetInstance()->GetResourceManager()->LoadResourceProcess(path.c_str());
+}
+
+// SOH [Unbound] A string `id` that is not a number names an actor (unbound-docs/actors.md).
+bool IsActorName(const Json& id) {
+    int64_t number = 0;
+    return id.is_string() && !SOH::Unbound::ParseIntString(id.get<std::string>(), number);
+}
+
+// SOH [Unbound] Ids from kCustomActorIdBase up are assigned at load in registry order, so the same number means
+// another type once another mod is mounted: those actors are addressed by name only.
+bool IsStableActorId(int64_t id) {
+    return id < SOH::Unbound::kCustomActorIdBase;
 }
 
 ActorEntry ReadActor(const Json& a) {
@@ -340,12 +353,32 @@ Command BuildExitList(CommandBuilder& b, const Json& list) {
     return cmd;
 }
 
+// SOH [Unbound] A transition actor's id is a number below the custom actor types. A name, or a custom type's
+// number, reads as -1, which the spawn loop skips; the entry keeps its place because the list is positional.
+s16 ReadTransitionActorId(const CommandBuilder& b, const std::string& key, const Json& t) {
+    auto it = t.find(K::kId);
+    if (it != t.end() && IsActorName(*it)) {
+        SPDLOG_ERROR("[Unbound] {}: transition actor {} is named '{}'; names are accepted in room actors only, so it "
+                     "does not spawn",
+                     b.docPath, key, it->get<std::string>());
+        return -1;
+    }
+    int64_t id = Field(t, K::kId);
+    if (!IsStableActorId(id)) {
+        SPDLOG_ERROR(
+            "[Unbound] {}: transition actor {} has id {:#x}, a custom actor type's number, so it does not spawn",
+            b.docPath, key, id);
+        return -1;
+    }
+    return (s16)id;
+}
+
 Command BuildTransitionActors(CommandBuilder& b, const Json& list) {
     auto cmd = b.Make<SetTransitionActorList>(SceneCommandID::SetTransitionActorList);
     for (const auto& k : b.Positional(list, K::kTransitionActors)) {
         const Json& t = list[k];
         TransitionActorEntry e{};
-        e.id = (s16)Field(t, K::kId);
+        e.id = ReadTransitionActorId(b, k, t);
         e.pos = ReadVec3f(SubArray(t, K::kPos));
         e.rotY = (s16)Field(t, K::kRotY);
         e.params = (s16)Field(t, K::kParams);
@@ -639,15 +672,8 @@ Command BuildMaterialAnims(CommandBuilder& b, const Json& list) {
 // ---- keyed list --------------------------------------------------------------------------------
 
 // SOH [Unbound] A room actor's `id` may be an actor's name instead of its number (unbound-docs/actors.md): a custom
-// actor type's, or any name ActorDB knows. False, logged, when it names no actor. Spawns and transition actors keep
-// numbers, which is why this lives here and not in ReadActor.
-bool ResolveActorName(const CommandBuilder& b, const std::string& key, const Json& a, ActorEntry& e) {
-    auto it = a.find(K::kId);
-    int64_t number = 0;
-    if (it == a.end() || !it->is_string() || SOH::Unbound::ParseIntString(it->get<std::string>(), number)) {
-        return true; // a number: ReadActor already read it
-    }
-    const std::string name = it->get<std::string>();
+// actor type's, or any name ActorDB knows. False, logged, when it names no actor.
+bool ResolveActorName(const CommandBuilder& b, const std::string& key, const std::string& name, ActorEntry& e) {
     int id = ActorDB::Instance->RetrieveId(name);
     if (id < 0) {
         SPDLOG_ERROR("[Unbound] {}: actor '{}' names no known actor '{}'; it is skipped", b.docPath, key, name);
@@ -657,6 +683,43 @@ bool ResolveActorName(const CommandBuilder& b, const std::string& key, const Jso
     return true;
 }
 
+// SOH [Unbound] A room actor's numeric `id` must be below the custom actor types. False, logged, otherwise.
+bool CheckActorNumber(const CommandBuilder& b, const std::string& key, const Json& a) {
+    int64_t id = Field(a, K::kId);
+    if (!IsStableActorId(id)) {
+        SPDLOG_ERROR("[Unbound] {}: actor '{}' has id {:#x}, a custom actor type's number, which changes with the "
+                     "mounted mods; place it by name. It is skipped",
+                     b.docPath, key, id);
+        return false;
+    }
+    return true;
+}
+
+// SOH [Unbound] `params` as an object is reserved for named arguments in a later version (unbound-docs/actors.md).
+// Skipping the actor, rather than reading the object as 0, keeps a later document from spawning it set up wrong.
+bool CheckParams(const CommandBuilder& b, const std::string& key, const Json& a) {
+    auto it = a.find(K::kParams);
+    if (it != a.end() && it->is_object()) {
+        SPDLOG_ERROR("[Unbound] {}: actor '{}' has object params, which this build does not read; it is skipped",
+                     b.docPath, key);
+        return false;
+    }
+    return true;
+}
+
+// SOH [Unbound] The room-actor rules on top of ReadActor, which spawns share: names, custom ids and params. False,
+// logged, when the actor is skipped.
+bool ResolveRoomActor(const CommandBuilder& b, const std::string& key, const Json& a, ActorEntry& e) {
+    if (!CheckParams(b, key, a)) {
+        return false;
+    }
+    auto it = a.find(K::kId);
+    if (it != a.end() && IsActorName(*it)) {
+        return ResolveActorName(b, key, it->get<std::string>(), e);
+    }
+    return CheckActorNumber(b, key, a);
+}
+
 Command BuildActorList(CommandBuilder& b, const Json& list) {
     auto cmd = b.Make<SetActorList>(SceneCommandID::SetActorList);
     for (const auto& k : ListKeys(list)) { // keyed: $order then numeric-first key order
@@ -664,7 +727,7 @@ Command BuildActorList(CommandBuilder& b, const Json& list) {
             continue;
         }
         ActorEntry e = ReadActor(list[k]);
-        if (ResolveActorName(b, k, list[k], e)) {
+        if (ResolveRoomActor(b, k, list[k], e)) {
             cmd->actorList.push_back(e);
         }
     }

@@ -520,6 +520,14 @@ ActorDB::Entry& ActorDB::AddEntry(const ActorDBInit& init) {
     return AddEntry(init, nextFreeId);
 }
 
+// SOH [Unbound] See the header.
+ActorDB::Entry* ActorDB::TryAddEntry(const ActorDBInit& init, size_t id) {
+    if (nameTable.contains(init.name) || (id < db.size() && db[id].entry.valid)) {
+        return nullptr;
+    }
+    return &AddEntry(init, id);
+}
+
 // SOH [Unbound] Adds an actor with the new ActorDBInit struct at the given id.
 ActorDB::Entry& ActorDB::AddEntry(const ActorDBInit& init, size_t id) {
     Entry& entry = AddEntry(init.name, init.desc, id);

@@ -1730,7 +1730,9 @@ extern "C" void InitOTR(int argc, char* argv[]) {
 
     InitMods();
     ActorDB::AddBuiltInCustomActors();
-    SOH::Unbound::LoadCustomActors(); // SOH [Unbound] after the built-ins, so mod types never shift their ids
+    // SOH [Unbound] After the built-ins: they take the next free id, which registering the mod types (from 0x1000)
+    // first would move.
+    SOH::Unbound::LoadCustomActors();
     // #region SOH [Randomizer] TODO: Remove these and refactor spoiler file handling for randomizer
     CVarClear(CVAR_GENERAL("RandomizerNewFileDropped"));
     CVarClear(CVAR_GENERAL("RandomizerDroppedFile"));

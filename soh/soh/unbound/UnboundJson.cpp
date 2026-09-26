@@ -75,6 +75,25 @@ Json LoadMergedJson(const std::string& path) {
     return merged;
 }
 
+size_t ForEachRegistryEntry(const std::string& path, const char* what,
+                            const std::function<bool(const std::string& key, const Json& entry)>& add) {
+    Json registry = LoadMergedJson(path);
+    if (!registry.is_object()) {
+        return 0;
+    }
+    size_t accepted = 0;
+    for (const auto& key : ListKeys(registry)) {
+        try {
+            if (registry[key].is_object() && add(key, registry[key])) {
+                accepted++;
+            }
+        } catch (const nlohmann::json::exception& e) {
+            SPDLOG_ERROR("[Unbound] {}: {} '{}': {}", path, what, key, e.what());
+        }
+    }
+    return accepted;
+}
+
 static bool IsIntegerKey(const std::string& key, long long& value) {
     if (key.empty()) {
         return false;

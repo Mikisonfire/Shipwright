@@ -11,7 +11,12 @@
         "96": { "id": "example/glass_pane",       "pos": [-120, 1, 1900], "rot": [0, -32768, 0], "params": 0 },
         "97": { "id": "example/bad_skeleton",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "98": { "id": "example/bad_animation",    "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
-        "99": { "id": "En_Kanban",                "pos": [120, 1, 1900],  "rot": [0, -32768, 0], "params": 0 }
+        "99": { "id": "En_Kanban",                "pos": [120, 1, 1900],  "rot": [0, -32768, 0], "params": 0 },
+        "100": { "id": "example/skin_skeleton",   "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "101": { "id": "example/too_few_joints",  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "102": { "id": "example/later_model_key", "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "103": { "id": "0x1000",                  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } }
       }
     },
     "1": {
@@ -25,7 +30,12 @@
         "96": { "id": "example/glass_pane",       "pos": [-120, 1, 1900], "rot": [0, -32768, 0], "params": 0 },
         "97": { "id": "example/bad_skeleton",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "98": { "id": "example/bad_animation",    "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
-        "99": { "id": "En_Kanban",                "pos": [120, 1, 1900],  "rot": [0, -32768, 0], "params": 0 }
+        "99": { "id": "En_Kanban",                "pos": [120, 1, 1900],  "rot": [0, -32768, 0], "params": 0 },
+        "100": { "id": "example/skin_skeleton",   "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "101": { "id": "example/too_few_joints",  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "102": { "id": "example/later_model_key", "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "103": { "id": "0x1000",                  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } }
       }
     },
     "2": {
@@ -39,7 +49,12 @@
         "96": { "id": "example/glass_pane",       "pos": [-120, 1, 1900], "rot": [0, -32768, 0], "params": 0 },
         "97": { "id": "example/bad_skeleton",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
         "98": { "id": "example/bad_animation",    "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
-        "99": { "id": "En_Kanban",                "pos": [120, 1, 1900],  "rot": [0, -32768, 0], "params": 0 }
+        "99": { "id": "En_Kanban",                "pos": [120, 1, 1900],  "rot": [0, -32768, 0], "params": 0 },
+        "100": { "id": "example/skin_skeleton",   "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "101": { "id": "example/too_few_joints",  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "102": { "id": "example/later_model_key", "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "103": { "id": "0x1000",                  "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": 0 },
+        "104": { "id": "example/talking_pot",     "pos": [0, 1, 1800],    "rot": [0, -32768, 0], "params": { "message": "0xA003" } }
       }
     }
   }

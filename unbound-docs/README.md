@@ -120,9 +120,13 @@ behind them and likely next targets:
 | SoH: Unbound | `unbound` | `<SoH version>-unbound<X.Y>` (`9.2.3-unbound0.1`) | `SoH: Unbound <tag>` |
 | SoH (cel-shading fork) | `wind-waker-style-cel-shading` | `<SoH version>-celshade<X.Y>` | `SoH (cel-shading fork) <tag>` |
 
-Pushing a release branch warms the CI caches; pushing a tag builds macOS, Linux and Windows and
-publishes the release with assets `SoH-<tag>-{Mac.dmg,Linux.appimage,Win64.zip}`. Release notes are
-generated from the previous tag of the *same* product, prefixed by `.github/release-notes/<product>.md`.
+Pushing a release branch builds macOS, Linux and Windows and saves the CI caches. Pushing a tag
+builds nothing itself: GitHub lets a run on a tag read only its own caches and the default
+branch's, so a tag build would start cold (about two hours). The tag run instead starts a release
+run of the same workflow on the tag's branch (`workflow_dispatch` with the tag as input), which
+reads that branch's caches, builds the tagged commit, and publishes the release with assets
+`SoH-<tag>-{Mac.dmg,Linux.appimage,Win64.zip}`. Release notes are generated from the previous tag
+of the *same* product, prefixed by `.github/release-notes/<product>.md`.
 
 **Before tagging, bump the in-app version.** Nothing derives it from the tag: set `PROJECT_FORK_VERSION`
 in the root `CMakeLists.txt` to the tag's suffix (`unbound0.8` for tag `9.2.3-unbound0.8`) and commit
@@ -130,9 +134,17 @@ it. It is shown under Settings > General > About as `<SoH version>-<suffix>`; `g
 stays the vanilla SoH version because spoiler logs, `soh.o2r` and the Unbound exporter check against it.
 
 ```
-# 1. bump PROJECT_FORK_VERSION in CMakeLists.txt and commit
-git checkout unbound && git push origin unbound        # warm caches (optional)
-git tag 9.2.3-unbound0.1 && git push origin 9.2.3-unbound0.1
+# 1. bump PROJECT_FORK_VERSION in CMakeLists.txt, commit, and push the branch
+git checkout unbound && git push origin unbound
+# 2. wait for that branch run to go green: it fills the caches the release run reads, and a
+#    platform that fails there would fail the release too
+gh run list -R roborich/Shipwright -w generate-builds -b unbound -L 1
+# 3. tag the same commit
+git tag 9.2.3-unbound0.9 && git push origin 9.2.3-unbound0.9
 ```
+
+Tag the branch's head: the caches belong to the head, and the release run warns when the tag is
+elsewhere. If the tag run cannot start the release run, start it by hand with
+`gh workflow run generate-builds.yml -R roborich/Shipwright --ref unbound -f tag=<tag>`.
 
 `gh` defaults to upstream here; pass `-R roborich/Shipwright` to watch the run or the release.

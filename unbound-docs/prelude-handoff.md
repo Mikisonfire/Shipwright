@@ -9,9 +9,8 @@ is tagged `SOH [Unbound]`.
 ## 2026-09-26 — custom actor `look` axes: `turnAxis` and `nodAxis`
 
 Asked for by Prelude for rigs imported from `.glb` (MM Skull Kid / `Dm_Stk`, whose head X axis
-points forward, so the old fixed X turn rolled the head). Commit `7119522d4` on
-`unbound-custom-actors-mvp`, not merged into `unbound`, not in a release; boot-verified by log,
-not visually checked.
+points forward, so the old fixed X turn rolled the head). Commit `7119522d4`, merged
+into `unbound` (`12b0b18e6`); not in a release yet; boot-verified by log, not visually checked.
 
 | Change | SPEC | Prelude must |
 |---|---|---|

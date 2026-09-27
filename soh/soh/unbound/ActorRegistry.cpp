@@ -95,7 +95,7 @@ bool CheckAllKeys(const std::string& key, const Json& def) {
                        K::kYOffset, K::kSegments, K::kHideLimbs, K::kShadow, K::kCullRadius, K::kDrawDistance }) &&
            CheckKeys(key, Sub(def, K::kCollision), "collision.", { K::kRadius, K::kHeight, K::kYShift }) &&
            CheckKeys(key, Sub(def, K::kTalk), "talk.", { K::kMessage, K::kRange }) &&
-           CheckKeys(key, Sub(def, K::kLook), "look.", { K::kLimb, K::kPivot, K::kRange });
+           CheckKeys(key, Sub(def, K::kLook), "look.", { K::kLimb, K::kPivot, K::kRange, K::kTurnAxis, K::kNodAxis });
 }
 
 void ReadSegments(const std::string& key, const Json& segments, DeclaredActorType& type) {
@@ -197,6 +197,53 @@ void ReadTalk(const std::string& key, const Json& def, DeclaredActorType& type) 
     type.talkRange = Distance(*it, K::kRange, 50.0 + std::max<s16>(type.radius, 0));
 }
 
+// A look axis, normalized into `axis`; absent keeps the default already there. False, logged, unless it is three
+// numbers of nonzero length.
+bool ReadAxis(const std::string& key, const Json& look, const char* field, Vec3f& axis) {
+    auto it = look.find(field);
+    if (it == look.end()) {
+        return true;
+    }
+    double v[3] = { NAN, NAN, NAN };
+    if (it->is_array() && it->size() == 3) {
+        for (size_t i = 0; i < 3; i++) {
+            v[i] = ToNumber((*it)[i], NAN);
+        }
+    }
+    double length = std::sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+    if (!std::isfinite(length) || length == 0.0) {
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" is not three numbers of nonzero length; the head will not "
+                     "turn",
+                     key, K::kLook, field);
+        return false;
+    }
+    axis = { (f32)(v[0] / length), (f32)(v[1] / length), (f32)(v[2] / length) };
+    return true;
+}
+
+// Unit axes closer than this sine of the angle between them are parallel: the head could turn but not nod.
+constexpr f32 kParallelSine = 1e-3f;
+
+bool Parallel(const Vec3f& a, const Vec3f& b) {
+    f32 x = a.y * b.z - a.z * b.y;
+    f32 y = a.z * b.x - a.x * b.z;
+    f32 z = a.x * b.y - a.y * b.x;
+    return std::sqrt(x * x + y * y + z * z) < kParallelSine;
+}
+
+// False, logged, when either axis is unusable or the two are parallel.
+bool ReadLookAxes(const std::string& key, const Json& look, DeclaredActorType& type) {
+    if (!ReadAxis(key, look, K::kTurnAxis, type.turnAxis) || !ReadAxis(key, look, K::kNodAxis, type.nodAxis)) {
+        return false;
+    }
+    if (Parallel(type.turnAxis, type.nodAxis)) {
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" and \"{}.{}\" are parallel; the head will not turn", key,
+                     K::kLook, K::kTurnAxis, K::kLook, K::kNodAxis);
+        return false;
+    }
+    return true;
+}
+
 bool ReadLook(const std::string& key, const Json& def, DeclaredActorType& type) {
     auto it = def.find(K::kLook);
     if (it == def.end() || !it->is_object()) {
@@ -211,10 +258,10 @@ bool ReadLook(const std::string& key, const Json& def, DeclaredActorType& type) 
                      K::kLimb);
         return true;
     }
-    type.looks = true;
     type.limb = (s32)Field(*it, K::kLimb);
     type.pivot = (f32)NumberField(*it, K::kPivot);
     type.lookRange = Distance(*it, K::kRange, 200.0);
+    type.looks = ReadLookAxes(key, *it, type);
     return true;
 }
 

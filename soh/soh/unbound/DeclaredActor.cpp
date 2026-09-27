@@ -435,19 +435,37 @@ void UpdateAnimation(DeclaredActor* self) {
 
 // ---- draw ---------------------------------------------------------------------------------------------------------
 
-// Turns the head about the head limb's own axes, around the point `pivot` along its X axis: left and right about X,
-// up and down about Z, as vanilla character rigs are built. The limb's transform is applied here and zeroed so the
-// skeleton drawer applies nothing further.
+// The point the head turns about, in the head limb's space: `pivot` along the turn axis.
+Vec3f HeadPivot(const DeclaredActorType& type) {
+    return { type.pivot * type.turnAxis.x, type.pivot * type.turnAxis.y, type.pivot * type.turnAxis.z };
+}
+
+// Rotates the current matrix about a unit axis in its own space. The X and Z axes keep Matrix_RotateX/Z, so the
+// default look axes turn a head exactly as before the axes could be set.
+void RotateAbout(f32 angle, const Vec3f& axis) {
+    if (axis.x == 1.0f && axis.y == 0.0f && axis.z == 0.0f) {
+        Matrix_RotateX(angle, MTXMODE_APPLY);
+    } else if (axis.x == 0.0f && axis.y == 0.0f && axis.z == 1.0f) {
+        Matrix_RotateZ(angle, MTXMODE_APPLY);
+    } else {
+        Vec3f unit = axis;
+        Matrix_RotateAxis(angle, &unit, MTXMODE_APPLY);
+    }
+}
+
+// Turns the head about the head limb's own axes, around HeadPivot: left and right about `turnAxis`, then up and down
+// about `nodAxis` (by default X and Z, as vanilla character rigs are built). The limb's transform is applied here and
+// zeroed so the skeleton drawer applies nothing further.
 void TurnHead(DeclaredActor* self, s32 limbIndex, Vec3f* pos, Vec3s* rot) {
     if (!self->looking || limbIndex != self->type->limb) {
         return;
     }
-    f32 pivot = self->type->pivot;
+    Vec3f pivot = HeadPivot(*self->type);
     Matrix_TranslateRotateZYX(pos, rot);
-    Matrix_Translate(pivot, 0.0f, 0.0f, MTXMODE_APPLY);
-    Matrix_RotateX(BINANG_TO_RAD(self->interactInfo.headRot.y), MTXMODE_APPLY);
-    Matrix_RotateZ(BINANG_TO_RAD(self->interactInfo.headRot.x), MTXMODE_APPLY);
-    Matrix_Translate(-pivot, 0.0f, 0.0f, MTXMODE_APPLY);
+    Matrix_Translate(pivot.x, pivot.y, pivot.z, MTXMODE_APPLY);
+    RotateAbout(BINANG_TO_RAD(self->interactInfo.headRot.y), self->type->turnAxis);
+    RotateAbout(BINANG_TO_RAD(self->interactInfo.headRot.x), self->type->nodAxis);
+    Matrix_Translate(-pivot.x, -pivot.y, -pivot.z, MTXMODE_APPLY);
     *pos = { 0.0f, 0.0f, 0.0f };
     *rot = { 0, 0, 0 };
 }
@@ -456,7 +474,7 @@ void RecordHeadFocus(DeclaredActor* self, s32 limbIndex) {
     if (!self->looking || limbIndex != self->type->limb) {
         return;
     }
-    Vec3f pivot = { self->type->pivot, 0.0f, 0.0f };
+    Vec3f pivot = HeadPivot(*self->type);
     Matrix_MultVec3f(&pivot, &self->actor.focus.pos);
 }
 

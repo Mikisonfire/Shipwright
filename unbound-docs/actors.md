@@ -250,9 +250,14 @@ Destroy: free the skeleton and the collider, if they were set up
   `EnToryo`, … usually on limb 15). `UpdateLook` calls `Npc_TrackPoint` (preset 0: 60° of head
   yaw) in `NPC_TRACKING_HEAD` mode while the player is within `range` or talking, and in
   `NPC_TRACKING_NONE` otherwise, so the head eases back to rest. The head's limb-draw callback
-  applies the limb's own transform, then turns about `pivot` on the limb's X axis: `headRot.y`
-  about X and `headRot.x` about Z. The X turn is the same as `EnToryo_OverrideLimbDraw` adding
-  `headRot.y` to the limb's X rotation. (`EnMa1`/`EnKo` translate 1 200–1 400 units *before* the
+  applies the limb's own transform, then turns about the point `pivot` along `turnAxis`:
+  `headRot.y` about `turnAxis` (default X), then `headRot.x` about `nodAxis` (default Z). The
+  default X turn is the same as `EnToryo_OverrideLimbDraw` adding `headRot.y` to the limb's X
+  rotation. The default axes keep `Matrix_RotateX`/`Matrix_RotateZ`; any other axis goes through
+  `Matrix_RotateAxis`, which has the same sign convention. Rigs built unlike vanilla's (an
+  imported MM Skull Kid's head X points forward, so an X turn rolls it) set the axes; Prelude
+  measures them from the rest pose. The registry normalizes both and turns tracking off, with an
+  error, for a malformed, zero or parallel axis. (`EnMa1`/`EnKo` translate 1 200–1 400 units *before* the
   limb's transform, in the parent's space, to reach the same neck point; after the transform that
   point is the limb's origin, hence `pivot` 0.) The post-limb-draw callback writes the pivot's
   world position to `actor->focus.pos`, which the next frame's tracking uses for its height. Torso
@@ -297,8 +302,7 @@ Recorded so the format leaves room for them. The unknown-key rule above is what 
 an older build rejects a type it cannot run instead of placing an actor that does nothing.
 
 1. **More built-in behaviors:** follow a path (scene `paths`), switch animation while talking,
-   blinking (a list of eye textures cycled on a segment), torso tracking, `look` axes for rigs
-   built unlike vanilla's.
+   blinking (a list of eye textures cycled on a segment), torso tracking.
 2. **Mesh collision for static models.** Decided against for v1. A cylinder is enough for trees,
    signs and statues, but a rock the player can stand on, a bridge or a platform needs its model's
    shape as collision: `collision.mesh` naming a collision resource, registered as a dynamic
@@ -339,7 +343,9 @@ an older build rejects a type it cannot run instead of placing an actor that doe
   object in the room's `objects`, exactly as when placed by number.
 - Preview: draw the skeleton in the chosen animation frame, or the display list.
 - For `look`: let the user pick the head limb from the skeleton's limb list, numbered from 1 at
-  the root (vanilla limb-draw numbering), since the index differs between rigs.
+  the root (vanilla limb-draw numbering), since the index differs between rigs. For a rig not
+  built like vanilla's, write `turnAxis`/`nodAxis` in the head limb's space, and only when they
+  differ from `[1, 0, 0]`/`[0, 0, 1]`: older builds reject a type with keys they do not know.
 - Validate: skeleton is normal or flex with standard or LOD limbs, animation limb count matches
   the skeleton, the talk message exists in the mod's text, `params` for a talking type is a
   message id.

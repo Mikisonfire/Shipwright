@@ -2,6 +2,7 @@
 // SOH [Unbound] A custom actor type declared in data (unbound/actors.json). ActorRegistry.cpp reads the JSON into
 // this struct; the driver (DeclaredActor.cpp) sees only the struct. Design: unbound-docs/actors.md.
 #include <libultraship/libultra.h>
+#include "z64math.h"
 
 #include <cstddef>
 #include <string>
@@ -46,11 +47,14 @@ struct DeclaredActorType {
     u16 message = 0;
     f32 talkRange = 0.0f;
 
-    // Look: the head limb (limb-draw numbering, root = 1) turns toward the player.
+    // Look: the head limb (limb-draw numbering, root = 1) turns toward the player, about unit axes in the limb's own
+    // space, around the point `pivot` along turnAxis. The defaults are vanilla rigs' axes.
     bool looks = false;
     s32 limb = 0;
     f32 pivot = 0.0f;
     f32 lookRange = 200.0f;
+    Vec3f turnAxis = { 1.0f, 0.0f, 0.0f };
+    Vec3f nodAxis = { 0.0f, 0.0f, 1.0f };
 
     bool HasCollision() const {
         return radius > 0 && height > 0;

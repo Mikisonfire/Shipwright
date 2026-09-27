@@ -6,6 +6,18 @@ let the user build. **The contract is [`SPEC.md`](./SPEC.md)**; every entry belo
 section that defines it, and when this page and SPEC disagree, SPEC wins. Everything in the code
 is tagged `SOH [Unbound]`.
 
+## 2026-09-26 — custom actor `look` axes: `turnAxis` and `nodAxis`
+
+Asked for by Prelude for rigs imported from `.glb` (MM Skull Kid / `Dm_Stk`, whose head X axis
+points forward, so the old fixed X turn rolled the head). Commit `7119522d4` on
+`unbound-custom-actors-mvp`, not merged into `unbound`, not in a release; boot-verified by log,
+not visually checked.
+
+| Change | SPEC | Prelude must |
+|---|---|---|
+| `look.turnAxis` `[x, y, z]`, default `[1, 0, 0]`: the axis in the head limb's own space the head turns about to follow the player left and right (positive `headRot.y` by the right-hand rule). `look.nodAxis`, default `[0, 0, 1]`: the axis it nods about (`headRot.x`). The head turns, then nods. `pivot` now lies along `turnAxis` (normalized), for both the turn and the focus point. | §7.2 | Measure the axes from the rest pose and write them **only when they differ from the defaults**: a build without these keys rejects the whole type (unknown key). Absent keys draw exactly as before. |
+| Each axis is normalized. An axis that is not an array of three numbers, or has zero length, or two axes less than about 0.06° apart (after defaults apply), leaves the actor **without head tracking** and log an error; the type still registers and spawns, as with a bad `look.limb`. | §7.2 | Validate at export: three finite numbers, nonzero, not parallel. |
+
 ## 2026-09-26 — custom actor types: declared in `unbound/actors.json`, placed by name
 
 A mod can now add actor types without C code, and place them, and any actor ActorDB knows, **by

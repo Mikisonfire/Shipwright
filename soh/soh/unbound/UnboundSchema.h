@@ -275,6 +275,8 @@ inline constexpr const char* kMessage = "message";
 inline constexpr const char* kRange = "range";
 inline constexpr const char* kLimb = "limb";
 inline constexpr const char* kPivot = "pivot";
+inline constexpr const char* kTurnAxis = "turnAxis";
+inline constexpr const char* kNodAxis = "nodAxis";
 
 // Manifest (§6)
 inline constexpr const char* kManifestPath = "unbound.json";

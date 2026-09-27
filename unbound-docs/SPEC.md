@@ -582,12 +582,20 @@ not exist shows whatever the game shows for a missing id, as with any actor.
 | Key | Type / meaning |
 |---|---|
 | `limb` | integer: the head limb, numbered as vanilla limb-draw code numbers limbs (the root limb is 1; vanilla NPC heads are usually 15). Required: absent, or not a limb of the skeleton, the actor spawns without head tracking and an error is logged. |
-| `pivot` | number: distance along the head limb's X axis, in model units, from the limb's origin to the point the head turns about. Default 0, the limb's origin, which is the neck on vanilla rigs. |
+| `pivot` | number: distance along `turnAxis`, in model units, from the limb's origin to the point the head turns about. Default 0, the limb's origin, which is the neck on vanilla rigs. |
 | `range` | number: the head follows the player within this distance, in world units, and while talking; outside it the head returns to rest. Default 200. A negative value reads as 0. |
+| `turnAxis` | `[x, y, z]`: the axis, in the head limb's own space, the head turns about to follow the player left and right; a positive turn rotates by the right-hand rule about it. Default `[1, 0, 0]`, the limb's X axis. |
+| `nodAxis` | `[x, y, z]`: the axis, in the same space, the head nods about to follow the player up and down. Default `[0, 0, 1]`, the limb's Z axis. |
 
-The head turns about the limb's own axes the way vanilla character rigs are built: turning left
-and right about the limb's X axis, and up and down about its Z axis. A skeleton made another way
-turns its head about the wrong axes.
+The head turns, then nods, about axes of the limb's own space, around the point `pivot` along
+`turnAxis`. The defaults are how vanilla character rigs are built (turning about the limb's X axis,
+which runs up the neck, and nodding about its Z axis); a skeleton made another way, such as one
+imported from another game whose head X axis points forward, sets the axes it was built with. Each
+axis is normalized, so only its direction counts. An axis that is not an array of three numbers or
+has zero length, or two axes that are parallel (less than about 0.06° apart, after the defaults
+apply), leaves the actor without head tracking and log an error, as a bad `limb` does; the type
+still registers. Writers should omit an axis equal to its default, since a reader without these
+keys rejects the type (the "any other key" row above).
 
 When `look` is present, the actor's focus point (where the targeting arrow sits and the camera
 looks while talking) is its head. Otherwise it is the top of the collision cylinder, or the
@@ -716,7 +724,9 @@ Limits that remain (validation targets for tools):
 - Adding an optional key with a zero default is not breaking and is recorded here under version 2.
   Version-2 additions so far: `sound.song` (§4.2, 2026-09-02); `materialAnims` (§4.2, 2026-09-05);
   `horse` (§7.1, 2026-09-16); scroll-layer `xSpeed`/`ySpeed` (§4.2, 2026-09-17); the actor
-  registry `unbound/actors.json` and actor names in a room actor's `id` (§7.2, §4.3, 2026-09-26).
+  registry `unbound/actors.json` and actor names in a room actor's `id` (§7.2, §4.3, 2026-09-26);
+  `look.turnAxis` and `look.nodAxis` (§7.2, 2026-09-26; a reader without them rejects a type that
+  sets them, so they are written only when they differ from the defaults).
   With the registry, a room or transition actor's integer `id` outside 0–`0xFFF` is skipped
   (§4.3): numbers from `0x1000` up named no actor before, and a negative one never did, so no
   valid document changes meaning.

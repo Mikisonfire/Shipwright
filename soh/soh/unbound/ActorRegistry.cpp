@@ -60,14 +60,14 @@ bool OptionalNumber(const Json& obj, const char* key, f32& out) {
 
 // The file's path is the type's name: not a number (a scene's `id` would read it as one) and not already an actor's
 // name.
-bool CheckName(const std::string& key) {
+bool CheckName(const std::string& name) {
     int64_t number = 0;
-    if (key.empty() || ParseIntString(key, number)) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': not a valid actor type name", key);
+    if (name.empty() || ParseIntString(name, number)) {
+        SPDLOG_ERROR("[Unbound] actor type '{}': not a valid actor type name", name);
         return false;
     }
-    if (ActorDB::Instance->RetrieveId(key) >= 0) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': already names an actor", key);
+    if (ActorDB::Instance->RetrieveId(name) >= 0) {
+        SPDLOG_ERROR("[Unbound] actor type '{}': already names an actor", name);
         return false;
     }
     return true;
@@ -75,12 +75,12 @@ bool CheckName(const std::string& key) {
 
 // False, logged, when `obj` has a key outside `known` (keys beginning with "$" are reserved, §2). `where` prefixes
 // the key in the message: "" at the top level, "model." inside the model.
-bool CheckKeys(const std::string& key, const Json& obj, const char* where, std::initializer_list<const char*> known) {
+bool CheckKeys(const std::string& name, const Json& obj, const char* where, std::initializer_list<const char*> known) {
     for (const auto& [field, value] : obj.items()) {
         if (field.starts_with("$") || std::find(known.begin(), known.end(), field) != known.end()) {
             continue;
         }
-        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}{}\" is not a key this build knows", key, where, field);
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}{}\" is not a key this build knows", name, where, field);
         return false;
     }
     return true;
@@ -89,24 +89,24 @@ bool CheckKeys(const std::string& key, const Json& obj, const char* where, std::
 // Keys this version does not define reject the entry, at the top level and inside each object, so a build that
 // predates a later key (base, params, script, model.lod) skips the type instead of spawning it without the
 // behavior.
-bool CheckAllKeys(const std::string& key, const Json& def) {
-    return CheckKeys(key, def, "", { K::kName, K::kModel, K::kCollision, K::kTalk, K::kLook }) &&
-           CheckKeys(key, Sub(def, K::kModel), "model.",
+bool CheckAllKeys(const std::string& name, const Json& def) {
+    return CheckKeys(name, def, "", { K::kName, K::kModel, K::kCollision, K::kTalk, K::kLook }) &&
+           CheckKeys(name, Sub(def, K::kModel), "model.",
                      { K::kSkeleton, K::kAnimation, K::kFrame, K::kSpeed, K::kDisplayList, K::kTranslucent, K::kScale,
                        K::kYOffset, K::kSegments, K::kHideLimbs, K::kShadow, K::kCullRadius, K::kDrawDistance }) &&
-           CheckKeys(key, Sub(def, K::kCollision), "collision.", { K::kRadius, K::kHeight, K::kYShift }) &&
-           CheckKeys(key, Sub(def, K::kTalk), "talk.", { K::kMessage, K::kRange }) &&
-           CheckKeys(key, Sub(def, K::kLook), "look.", { K::kLimb, K::kPivot, K::kRange, K::kTurnAxis, K::kNodAxis });
+           CheckKeys(name, Sub(def, K::kCollision), "collision.", { K::kRadius, K::kHeight, K::kYShift }) &&
+           CheckKeys(name, Sub(def, K::kTalk), "talk.", { K::kMessage, K::kRange }) &&
+           CheckKeys(name, Sub(def, K::kLook), "look.", { K::kLimb, K::kPivot, K::kRange, K::kTurnAxis, K::kNodAxis });
 }
 
-void ReadSegments(const std::string& key, const Json& segments, DeclaredActorType& type) {
+void ReadSegments(const std::string& name, const Json& segments, DeclaredActorType& type) {
     for (const auto& [segKey, value] : segments.items()) {
         int64_t segment = 0;
         std::string path = ReadPath(segments, segKey.c_str());
         if (!ParseIntString(segKey, segment) || segment < DeclaredActorType::kSegmentMin ||
             segment > DeclaredActorType::kSegmentMax || path.empty()) {
             SPDLOG_ERROR("[Unbound] actor type '{}': segment \"{}\" ignored (a segment 8-12 naming a texture path)",
-                         key, segKey);
+                         name, segKey);
             continue;
         }
         type.segments.emplace_back((u8)segment, std::move(path));
@@ -114,11 +114,11 @@ void ReadSegments(const std::string& key, const Json& segments, DeclaredActorTyp
 }
 
 // Limbs whose own display list is not drawn: vanilla actors hide spare hands and props their code swaps in.
-void ReadHideLimbs(const std::string& key, const Json& limbs, DeclaredActorType& type) {
+void ReadHideLimbs(const std::string& name, const Json& limbs, DeclaredActorType& type) {
     for (const Json& limb : limbs) {
         int64_t index = ToInt(limb, 0);
         if (index < 1) {
-            SPDLOG_ERROR("[Unbound] actor type '{}': hideLimbs entry {} ignored (limbs are numbered from 1)", key,
+            SPDLOG_ERROR("[Unbound] actor type '{}': hideLimbs entry {} ignored (limbs are numbered from 1)", name,
                          limb.dump());
             continue;
         }
@@ -128,26 +128,26 @@ void ReadHideLimbs(const std::string& key, const Json& limbs, DeclaredActorType&
 
 // False, logged, unless the scale is positive and finite: zero draws nothing, a negative scale turns the model inside
 // out, and the shadow size divides by it.
-bool ReadScale(const std::string& key, const Json& model, DeclaredActorType& type) {
+bool ReadScale(const std::string& name, const Json& model, DeclaredActorType& type) {
     type.scale = (f32)NumberField(model, K::kScale, 0.01);
     if (!std::isfinite(type.scale) || type.scale <= 0.0f) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" must be a positive number", key, K::kModel, K::kScale);
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" must be a positive number", name, K::kModel, K::kScale);
         return false;
     }
     return true;
 }
 
-bool ReadModel(const std::string& key, const Json& def, DeclaredActorType& type) {
+bool ReadModel(const std::string& name, const Json& def, DeclaredActorType& type) {
     auto it = def.find(K::kModel);
     if (it == def.end() || !it->is_object()) {
-        SPDLOG_ERROR("[Unbound] actor type '{}' has no \"{}\"", key, K::kModel);
+        SPDLOG_ERROR("[Unbound] actor type '{}' has no \"{}\"", name, K::kModel);
         return false;
     }
     const Json& model = *it;
     type.skeleton = ReadPath(model, K::kSkeleton);
     type.displayList = ReadPath(model, K::kDisplayList);
     if (type.skeleton.empty() == type.displayList.empty()) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}\" needs exactly one of \"{}\" or \"{}\"", key, K::kModel,
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}\" needs exactly one of \"{}\" or \"{}\"", name, K::kModel,
                      K::kSkeleton, K::kDisplayList);
         return false;
     }
@@ -155,22 +155,22 @@ bool ReadModel(const std::string& key, const Json& def, DeclaredActorType& type)
         // Required: an OoT skeleton has no usable rest pose. With every joint angle zero it folds up.
         type.animation = ReadPath(model, K::kAnimation);
         if (type.animation.empty()) {
-            SPDLOG_ERROR("[Unbound] actor type '{}': a \"{}\" needs an \"{}\"", key, K::kSkeleton, K::kAnimation);
+            SPDLOG_ERROR("[Unbound] actor type '{}': a \"{}\" needs an \"{}\"", name, K::kSkeleton, K::kAnimation);
             return false;
         }
     }
     type.holdFrame = OptionalNumber(model, K::kFrame, type.frame);
     type.speed = (f32)NumberField(model, K::kSpeed, 1.0);
     type.translucent = Field(model, K::kTranslucent) != 0;
-    if (!ReadScale(key, model, type)) {
+    if (!ReadScale(name, model, type)) {
         return false;
     }
     type.yOffset = (f32)NumberField(model, K::kYOffset);
     type.shadow = (f32)NumberField(model, K::kShadow);
     type.cullRadius = Distance(model, K::kCullRadius);
     type.drawDistance = Distance(model, K::kDrawDistance);
-    ReadSegments(key, Sub(model, K::kSegments), type);
-    ReadHideLimbs(key, SubArray(model, K::kHideLimbs), type);
+    ReadSegments(name, Sub(model, K::kSegments), type);
+    ReadHideLimbs(name, SubArray(model, K::kHideLimbs), type);
     return true;
 }
 
@@ -182,7 +182,7 @@ void ReadCollision(const Json& def, DeclaredActorType& type) {
 }
 
 // Reads after ReadCollision: the default range depends on the radius.
-void ReadTalk(const std::string& key, const Json& def, DeclaredActorType& type) {
+void ReadTalk(const std::string& name, const Json& def, DeclaredActorType& type) {
     auto it = def.find(K::kTalk);
     if (it == def.end() || !it->is_object()) {
         return;
@@ -190,7 +190,7 @@ void ReadTalk(const std::string& key, const Json& def, DeclaredActorType& type) 
     type.talks = true;
     int64_t message = Field(*it, K::kMessage);
     if (message < 0 || message > kMessageMax) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': message {} is not a message id; placements must set params", key,
+        SPDLOG_ERROR("[Unbound] actor type '{}': message {} is not a message id; placements must set params", name,
                      message);
         message = 0;
     }
@@ -200,7 +200,7 @@ void ReadTalk(const std::string& key, const Json& def, DeclaredActorType& type) 
 
 // A look axis, normalized into `axis`; absent keeps the default already there. False, logged, unless it is three
 // numbers of nonzero length.
-bool ReadAxis(const std::string& key, const Json& look, const char* field, Vec3f& axis) {
+bool ReadAxis(const std::string& name, const Json& look, const char* field, Vec3f& axis) {
     auto it = look.find(field);
     if (it == look.end()) {
         return true;
@@ -215,7 +215,7 @@ bool ReadAxis(const std::string& key, const Json& look, const char* field, Vec3f
     if (!std::isfinite(length) || length == 0.0) {
         SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" is not three numbers of nonzero length; the head will not "
                      "turn",
-                     key, K::kLook, field);
+                     name, K::kLook, field);
         return false;
     }
     axis = { (f32)(v[0] / length), (f32)(v[1] / length), (f32)(v[2] / length) };
@@ -233,69 +233,69 @@ bool Parallel(const Vec3f& a, const Vec3f& b) {
 }
 
 // False, logged, when either axis is unusable or the two are parallel.
-bool ReadLookAxes(const std::string& key, const Json& look, DeclaredActorType& type) {
-    if (!ReadAxis(key, look, K::kTurnAxis, type.turnAxis) || !ReadAxis(key, look, K::kNodAxis, type.nodAxis)) {
+bool ReadLookAxes(const std::string& name, const Json& look, DeclaredActorType& type) {
+    if (!ReadAxis(name, look, K::kTurnAxis, type.turnAxis) || !ReadAxis(name, look, K::kNodAxis, type.nodAxis)) {
         return false;
     }
     if (Parallel(type.turnAxis, type.nodAxis)) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" and \"{}.{}\" are parallel; the head will not turn", key,
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}.{}\" and \"{}.{}\" are parallel; the head will not turn", name,
                      K::kLook, K::kTurnAxis, K::kLook, K::kNodAxis);
         return false;
     }
     return true;
 }
 
-bool ReadLook(const std::string& key, const Json& def, DeclaredActorType& type) {
+bool ReadLook(const std::string& name, const Json& def, DeclaredActorType& type) {
     auto it = def.find(K::kLook);
     if (it == def.end() || !it->is_object()) {
         return true;
     }
     if (type.skeleton.empty()) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}\" needs a \"{}\"", key, K::kLook, K::kSkeleton);
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}\" needs a \"{}\"", name, K::kLook, K::kSkeleton);
         return false;
     }
     if (!it->contains(K::kLimb)) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}\" has no \"{}\"; the head will not turn", key, K::kLook,
+        SPDLOG_ERROR("[Unbound] actor type '{}': \"{}\" has no \"{}\"; the head will not turn", name, K::kLook,
                      K::kLimb);
         return true;
     }
     type.limb = (s32)Field(*it, K::kLimb);
     type.pivot = (f32)NumberField(*it, K::kPivot);
     type.lookRange = Distance(*it, K::kRange, 200.0);
-    type.looks = ReadLookAxes(key, *it, type);
+    type.looks = ReadLookAxes(name, *it, type);
     return true;
 }
 
-bool ReadType(const std::string& key, const Json& def, DeclaredActorType& type) {
-    if (!CheckName(key) || !CheckAllKeys(key, def) || !ReadModel(key, def, type)) {
+bool ReadType(const std::string& name, const Json& def, DeclaredActorType& type) {
+    if (!CheckName(name) || !CheckAllKeys(name, def) || !ReadModel(name, def, type)) {
         return false;
     }
     ReadCollision(def, type);
-    ReadTalk(key, def, type);
-    if (!ReadLook(key, def, type)) {
+    ReadTalk(name, def, type);
+    if (!ReadLook(name, def, type)) {
         return false;
     }
-    type.name = key;
-    type.displayName = def.contains(K::kName) && def[K::kName].is_string() ? def[K::kName].get<std::string>() : key;
+    type.name = name;
+    type.displayName = def.contains(K::kName) && def[K::kName].is_string() ? def[K::kName].get<std::string>() : name;
     return true;
 }
 
-bool RegisterType(const std::string& key, const Json& def) {
+bool RegisterType(const std::string& name, const Json& def) {
     DeclaredActorType type;
-    if (!ReadType(key, def, type)) {
+    if (!ReadType(name, def, type)) {
         return false;
     }
     int32_t id = kCustomActorIdBase + (int32_t)sTypes.size();
     if (id > INT16_MAX) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': does not fit; actor ids are 16-bit", key);
+        SPDLOG_ERROR("[Unbound] actor type '{}': does not fit; actor ids are 16-bit", name);
         return false;
     }
     if (ActorDB::Instance->TryAddEntry(DeclaredActor_DBInit(type), id) == nullptr) {
-        SPDLOG_ERROR("[Unbound] actor type '{}': cannot take id {:#x}, which another actor already uses", key, id);
+        SPDLOG_ERROR("[Unbound] actor type '{}': cannot take id {:#x}, which another actor already uses", name, id);
         return false;
     }
     sTypes.push_back(std::move(type));
-    SPDLOG_INFO("[Unbound] actor type '{}' -> id {:#x}", key, id);
+    SPDLOG_INFO("[Unbound] actor type '{}' -> id {:#x}", name, id);
     return true;
 }
 

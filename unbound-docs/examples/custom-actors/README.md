@@ -1,8 +1,8 @@
 # Example: custom actor types
 
-Declares nineteen actor types, one file each under `unbound/actors/` (the path names the type:
+Declares seventeen actor types in nineteen files under `unbound/actors/` (the path names the type:
 `unbound/actors/example/carpenter.json` is `example/carpenter`): eleven that register (four of them
-fail to spawn, and two turn off their head tracking, on purpose), six that are rejected and two
+fail to spawn, and two turn off their head tracking, on purpose) and six that are rejected, plus two
 files that are not a type at all, and places them
 by name in Hyrule Field (`spot00`, room 0, setups 0–2: child day and night, adult day) just outside
 the castle drawbridge, using only vanilla assets by path. It is the test fixture for

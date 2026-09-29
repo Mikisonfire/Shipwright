@@ -157,10 +157,8 @@ know, so the problem does not recur for later additions.
   The registry registers each type with `ActorDB::TryAddEntry(init, id)`, at the next id after the
   types already registered.
 - **Duplicate names:** `ActorDB::AddEntry` `assert`s on a name or id it already has, which release
-  builds drop. The registry rejects a key `RetrieveId` already knows, and `TryAddEntry` checks the
-  name and the id again in every build, adding nothing when either is taken. Two mods declaring the
-  same key are not duplicates: the merge (SPEC §3) combines them into one entry before
-  registration, so the later mod patches the earlier one's type.
+  builds drop. The registry rejects a name `RetrieveId` already knows, and `TryAddEntry` checks the
+  name and the id again in every build, adding nothing when either is taken.
 - Every registered type is its own ActorDB entry, with its own id, name, description and flags,
   pointing at the shared driver functions. Flags: `ACTOR_FLAG_ATTENTION_ENABLED |
   ACTOR_FLAG_FRIENDLY` when the type talks. Category: `ACTORCAT_NPC` when it talks, otherwise

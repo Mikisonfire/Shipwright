@@ -38,7 +38,7 @@ size_t ForEachRegistryEntry(const std::string& path, const char* what,
 // subfolder, is layer-merged on its own path (§3) and passed as `add(name, entry)`, in sorted name order. A file
 // whose merged document is not an object is skipped (a JSON error in one layer is logged by LoadMergedJson; a
 // `null` document is a deletion, §3.2), as is one with a JSON error inside it, logged against `what`. Returns how
-// many files `add` accepted.
+// many files `add` accepted. `dir` is matched as a glob prefix, so it must not contain `*`, `?`, `[` or `\`.
 size_t ForEachRegistryFile(const std::string& dir, const char* what,
                            const std::function<bool(const std::string& name, const Json& entry)>& add);
 

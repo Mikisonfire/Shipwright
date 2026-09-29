@@ -10,7 +10,7 @@ is tagged `SOH [Unbound]`.
 
 Asked for by Prelude, which keeps each actor as its own asset and had to rewrite, and track its
 share of, one shared `unbound/actors.json`. The single document was never released, so it is
-simply gone: SoH no longer reads it. Branch `unbound-actor-files`; not merged, not in a release.
+simply gone: SoH no longer reads it. Commits `6e6d2ac6d` and `407dc984b`, on `unbound`; not in a release.
 Everything inside a type (the keys, defaults and rejections below) is unchanged.
 
 | Change | SPEC | Prelude must |

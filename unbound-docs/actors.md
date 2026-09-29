@@ -58,36 +58,44 @@ A type's model is one of two kinds:
 Every behavior works with either kind, so a static signpost can talk, and a static statue can
 block the player. Only head tracking (`look`) needs a skeleton, because it turns a limb.
 
-A registry entry declares the type:
+Each type is one file, and its path is the type's name. `unbound/actors/mymod/old_man.json`
+declares `mymod/old_man`:
 
 ```json
 {
-  "mymod/old_man": {
-    "name": "Old Man (sitting)",
-    "model": {
-      "skeleton": "objects/object_xxx/gOldManSkel",
-      "animation": "objects/object_xxx/gOldManSitAnim",
-      "scale": 0.01,
-      "segments": { "8": "objects/object_xxx/gOldManEyeOpenTex" },
-      "shadow": 20
-    },
-    "collision": { "radius": 20, "height": 50 },
-    "talk": { "message": "0xA001" },
-    "look": { "limb": 15 }
+  "name": "Old Man (sitting)",
+  "model": {
+    "skeleton": "objects/object_xxx/gOldManSkel",
+    "animation": "objects/object_xxx/gOldManSitAnim",
+    "scale": 0.01,
+    "segments": { "8": "objects/object_xxx/gOldManEyeOpenTex" },
+    "shadow": 20
   },
-  "mymod/pine_tree": {
-    "model": { "displayList": "objects/mymod_props/gPineTreeDL", "scale": 0.1, "shadow": 40 },
-    "collision": { "radius": 25, "height": 200 }
-  },
-  "mymod/signpost": {
-    "model": { "displayList": "objects/mymod_props/gSignpostDL", "scale": 0.1 },
-    "collision": { "radius": 12, "height": 40 },
-    "talk": {}
-  },
-  "mymod/ghost_lantern": {
-    "model": { "displayList": "objects/mymod_props/gGhostLanternDL", "scale": 0.1,
-               "translucent": true }
-  }
+  "collision": { "radius": 20, "height": 50 },
+  "talk": { "message": "0xA001" },
+  "look": { "limb": 15 }
+}
+```
+
+Three more types, one file each:
+
+```json
+// unbound/actors/mymod/pine_tree.json
+{
+  "model": { "displayList": "objects/mymod_props/gPineTreeDL", "scale": 0.1, "shadow": 40 },
+  "collision": { "radius": 25, "height": 200 }
+}
+
+// unbound/actors/mymod/signpost.json
+{
+  "model": { "displayList": "objects/mymod_props/gSignpostDL", "scale": 0.1 },
+  "collision": { "radius": 12, "height": 40 },
+  "talk": {}
+}
+
+// unbound/actors/mymod/ghost_lantern.json
+{
+  "model": { "displayList": "objects/mymod_props/gGhostLanternDL", "scale": 0.1, "translucent": true }
 }
 ```
 
@@ -125,10 +133,19 @@ know, so the problem does not recur for later additions.
 
 ### Registry
 
-- `soh/soh/unbound/ActorRegistry.{h,cpp}` reads the merged `unbound/actors.json`, validates each
-  entry into a `DeclaredActorType` struct, and registers it with ActorDB. It walks the registry
-  with `Unbound::ForEachRegistryEntry`, which `SceneDB::LoadCustomScenes` shares: each entry is
-  read in its own `try`, so one bad entry is logged and skipped and the rest load.
+- `soh/soh/unbound/ActorRegistry.{h,cpp}` reads every `unbound/actors/<name>.json`, validates
+  each into a `DeclaredActorType` struct, and registers it with ActorDB. It walks the files with
+  `Unbound::ForEachRegistryFile`: every mounted path under the folder, sorted by name, each
+  layer-merged on its own path and read in its own `try`, so one bad file is logged and skipped
+  and the rest load.
+- **One file per type, not one shared document.** The registry started as a single layer-merged
+  `unbound/actors.json`. A tool that keeps each type as its own asset (Prelude) had to rewrite
+  that shared file and work out which of its keys it owned; one file per type maps one asset to
+  one path, and a broken file loses only its own type. Layer merging still works per path, so a
+  mod can still patch another mod's type. A name comes from a path, so no two types can claim
+  one name; two mods that pick the same path merge instead, which is why writers keep to a
+  folder of their own. The folder is recommended, not required: a name without one works, and
+  the vanilla-name check still refuses one that clashes with an actor in code.
 - **Load point: after `ActorDB::AddBuiltInCustomActors()`** in `OTRGlobals.cpp`. `InitMods()`
   runs before it today (mods are mounted, then `LoadCustomScenes` runs from `UpdateModFiles`), so
   loading from the same place as scenes would number the mod types *before* SoH's own `En_Partner`.
@@ -336,7 +353,7 @@ an older build rejects a type it cannot run instead of placing an actor that doe
 
 ## What Prelude needs
 
-- Author `unbound/actors.json` entries: type name, model (an animated skeleton or a static
+- Author one `unbound/actors/<project>/<type>.json` per type: model (an animated skeleton or a static
   display list), collision, talk, look.
 - Place declared types (and named fork actors) by name in the actor palette, writing
   `"id": "<name>"`. This replaces typing raw ids. A vanilla actor placed by name still needs its
@@ -374,5 +391,9 @@ an older build rejects a type it cannot run instead of placing an actor that doe
    any `scale`.
 8. An event-ended message closes when advanced; after a conversation the actor can be talked to
    again, also after walking away mid-close.
-9. No-mod parity: with no `unbound/actors.json`, ActorDB, `En_Partner`'s id and vanilla rooms are
+9. Files: a type in a nested folder registers under its full path name; a file with invalid JSON
+   or a top-level array loses only its own type; a second mod carrying only
+   `{ "model": { "scale": 0.02 } }` at the same path rescales the type and keeps the rest; a
+   second mod whose file is `null` removes it.
+10. No-mod parity: with no `unbound/actors/` files, ActorDB, `En_Partner`'s id and vanilla rooms are
    unchanged.

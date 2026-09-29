@@ -1,4 +1,4 @@
-// SOH [Unbound] unbound/actors.json -> DeclaredActorType -> ActorDB. The rules each reader enforces are
+// SOH [Unbound] unbound/actors/<name>.json -> DeclaredActorType -> ActorDB. The rules each reader enforces are
 // unbound-docs/SPEC.md §7.2.
 #include "ActorRegistry.h"
 
@@ -58,15 +58,16 @@ bool OptionalNumber(const Json& obj, const char* key, f32& out) {
     return true;
 }
 
-// The key is the type's name: not a number (a scene's `id` would read it as one) and not already an actor's name.
+// The file's path is the type's name: not a number (a scene's `id` would read it as one) and not already an actor's
+// name.
 bool CheckName(const std::string& key) {
     int64_t number = 0;
     if (key.empty() || ParseIntString(key, number)) {
-        SPDLOG_ERROR("[Unbound] {}: '{}' is not a valid actor type name", K::kActorRegistryPath, key);
+        SPDLOG_ERROR("[Unbound] actor type '{}': not a valid actor type name", key);
         return false;
     }
     if (ActorDB::Instance->RetrieveId(key) >= 0) {
-        SPDLOG_ERROR("[Unbound] {}: '{}' already names an actor", K::kActorRegistryPath, key);
+        SPDLOG_ERROR("[Unbound] actor type '{}': already names an actor", key);
         return false;
     }
     return true;
@@ -286,12 +287,11 @@ bool RegisterType(const std::string& key, const Json& def) {
     }
     int32_t id = kCustomActorIdBase + (int32_t)sTypes.size();
     if (id > INT16_MAX) {
-        SPDLOG_ERROR("[Unbound] {}: '{}' does not fit; actor ids are 16-bit", K::kActorRegistryPath, key);
+        SPDLOG_ERROR("[Unbound] actor type '{}': does not fit; actor ids are 16-bit", key);
         return false;
     }
     if (ActorDB::Instance->TryAddEntry(DeclaredActor_DBInit(type), id) == nullptr) {
-        SPDLOG_ERROR("[Unbound] {}: '{}' cannot take id {:#x}, which another actor already uses", K::kActorRegistryPath,
-                     key, id);
+        SPDLOG_ERROR("[Unbound] actor type '{}': cannot take id {:#x}, which another actor already uses", key, id);
         return false;
     }
     sTypes.push_back(std::move(type));
@@ -302,11 +302,11 @@ bool RegisterType(const std::string& key, const Json& def) {
 } // namespace
 
 void LoadCustomActors() {
-    size_t loaded = ForEachRegistryEntry(K::kActorRegistryPath, "actor type", RegisterType);
+    size_t loaded = ForEachRegistryFile(K::kActorRegistryDir, "actor type", RegisterType);
     if (loaded == 0) {
         return;
     }
-    SPDLOG_INFO("[Unbound] {}: registered {} custom actor type(s)", K::kActorRegistryPath, loaded);
+    SPDLOG_INFO("[Unbound] {}: registered {} custom actor type(s)", K::kActorRegistryDir, loaded);
 }
 
 const DeclaredActorType* GetDeclaredActorType(int32_t actorId) {

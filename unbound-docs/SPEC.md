@@ -83,7 +83,7 @@ merged, lowest layer first:
    key that does not exist is ignored. Keys not listed follow the listed ones in *key sort
    order*: keys that are optionally signed decimal integers first, ascending numerically, then
    the rest in byte order. A keyed list without `$order` is entirely in key sort order. `$order`
-   is legal only on keyed lists (`actors`, the registry and its `entrances`; on `messages` it has
+   is legal only on keyed lists (`actors`, the scene registry and its `entrances`; on `messages` it has
    no effect); on a positional list the document is **rejected**.
 6. **`"$schema": "<type>/<version>"`** names the document type. A §4 document is **rejected**
    unless at least one layer provides it; the highest layer that provides it wins, and only a
@@ -277,7 +277,7 @@ strings; the converter uses the vanilla list index as the key. `params` is the v
 for that actor type. The number of actors per room is limited only by the live-actor cap (§9).
 
 `id` is an integer (§2) **or an actor name**: a string that is not an integer in the §2 string form
-names an actor type, either one registered in `unbound/actors.json` (§7.2) or an actor the game
+names an actor type, either one registered in `unbound/actors/` (§7.2) or an actor the game
 already knows by name (vanilla names such as `En_Kanban`, and actors a build adds in code). An
 entry whose name is not known is skipped with an error, and the rest of the list loads. A name
 changes nothing else about the actor: a vanilla actor placed by name still needs its object in the
@@ -452,7 +452,7 @@ removed from the layer merge.
 
 ## 7. Registries
 
-Mods add scenes, entrances and actor types by declaring them in a registry. The game assigns every
+Mods add scenes, entrances and actor types by declaring them in registry documents. The game assigns every
 number; everything else addresses them by name.
 
 ### 7.1 Scenes and entrances — `unbound/scenes.json`
@@ -507,14 +507,28 @@ order. Rejected entries are skipped; the remaining entries still register.
 Vanilla scenes are always registered under their enum names (`SCENE_HYRULE_FIELD`); vanilla
 entrances under theirs (`ENTR_HYRULE_FIELD_0`). Both name forms are valid exit values (§4.2).
 
-### 7.2 Actor types — `unbound/actors.json`
+### 7.2 Actor types — `unbound/actors/<name>.json`
 
-One layer-merged document (§3), keyed by actor type name. Like §7.1, it carries no `$schema`.
+One document per actor type; each document is one registry entry. Every path in any mounted archive
+that starts with `unbound/actors/` and ends with `.json` declares a type, and the part between is
+the type's **name**: `unbound/actors/mymod/old_man.json` declares `mymod/old_man`. Folders are
+allowed at any depth and the name is case-sensitive.
+
+The name must not be empty, must not be an integer in the §2 string form (a room actor's `id`
+would read it as a number), and must not be an actor name the game already knows (vanilla names
+such as `En_Kanban`, and actors SoH or a build adds in code); a name that breaks one of these
+**rejects the entry**. Writers should keep their types in a folder of their own
+(`unbound/actors/mymod/…`) so that two mods cannot declare the same name.
+
+Each path is layer-merged on its own (§3). A later layer patches another mod's type by carrying a
+document at the same path with only the keys it changes, and a layer whose document is `null`
+removes the type. A merged document that is not an object is skipped with an error; a document
+that is not parsable JSON in one layer is skipped as §3.2 says. A problem in one type's document
+never affects another type. Like §7.1, the documents carry no `$schema`.
 
 | Key | Required | Type / meaning |
 |---|---|---|
-| key | — | type name: any unique, non-empty string that is not an integer in the §2 string form and is not an actor name the game already knows (vanilla names such as `En_Kanban`, and actors SoH or a build adds in code). Writers should namespace it (`mymod/old_man`). Any other key **rejects the entry**. An entry that is not an object is ignored. |
-| `name` | no | display name; default = the key |
+| `name` | no | display name; default = the type's name |
 | `model` | yes | object (below). An entry without one is **rejected**. |
 | `collision` | no | object (below); absent = the actor has no collision and can be walked through |
 | `talk` | no | object (below); absent = the actor cannot be targeted or talked to |
@@ -601,7 +615,7 @@ When `look` is present, the actor's focus point (where the targeting arrow sits 
 looks while talking) is its head. Otherwise it is the top of the collision cylinder, or the
 actor's position when it has no collision.
 
-A registered type gets an actor id assigned by the game, in registry order (§3.5). The number
+A registered type gets an actor id assigned by the game, in byte order of the type names. The number
 depends on which mods are mounted and must never be written by a tool; types are addressed by
 name only.
 
@@ -724,7 +738,7 @@ Limits that remain (validation targets for tools):
 - Adding an optional key with a zero default is not breaking and is recorded here under version 2.
   Version-2 additions so far: `sound.song` (§4.2, 2026-09-02); `materialAnims` (§4.2, 2026-09-05);
   `horse` (§7.1, 2026-09-16); scroll-layer `xSpeed`/`ySpeed` (§4.2, 2026-09-17); the actor
-  registry `unbound/actors.json` and actor names in a room actor's `id` (§7.2, §4.3, 2026-09-26);
+  registry `unbound/actors/<name>.json` and actor names in a room actor's `id` (§7.2, §4.3, 2026-09-26);
   `look.turnAxis` and `look.nodAxis` (§7.2, 2026-09-26; a reader without them rejects a type that
   sets them, so they are written only when they differ from the defaults).
   With the registry, a room or transition actor's integer `id` outside 0–`0xFFF` is skipped
@@ -754,3 +768,7 @@ Limits that remain (validation targets for tools):
   `model.drawDistance` as its default. A negative `look.range` previously acted as its absolute
   value. A `hideLimbs` entry past the skeleton's last limb, which never hid anything, now also logs
   an error. No document with non-negative distances changes meaning and none is rejected.
+- Version-2 change (2026-09-28, actor types, before any release): each type is its own document,
+  `unbound/actors/<name>.json`, named by its path (§7.2), instead of a key of one layer-merged
+  `unbound/actors.json`. The single document was never released and is no longer read; types
+  register in name order, so `$order` no longer applies to them.

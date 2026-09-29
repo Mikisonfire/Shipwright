@@ -253,9 +253,9 @@ inline constexpr const char* kLayers = "layers";
 inline constexpr const char* kHorse = "horse";
 inline constexpr const char* kAngle = "angle";
 
-// Actor registry (unbound-docs/actors.md): unbound/actors.json. `kName`, `kCollision`, `kRadius`, `kHeight`,
-// `kSpeed` and `kDrawDistance` are shared with the entries above.
-inline constexpr const char* kActorRegistryPath = "unbound/actors.json";
+// Actor registry (unbound-docs/actors.md): one unbound/actors/<name>.json per type. `kName`, `kCollision`,
+// `kRadius`, `kHeight`, `kSpeed` and `kDrawDistance` are shared with the entries above.
+inline constexpr const char* kActorRegistryDir = "unbound/actors/";
 inline constexpr const char* kModel = "model";
 inline constexpr const char* kTalk = "talk";
 inline constexpr const char* kLook = "look";

@@ -34,6 +34,14 @@ Json LoadMergedJson(const std::string& path);
 size_t ForEachRegistryEntry(const std::string& path, const char* what,
                             const std::function<bool(const std::string& key, const Json& entry)>& add);
 
+// Calls `add` on each registry file under `dir` (§7), one entry per file: every mounted `<dir><name>.json`, in any
+// subfolder, is layer-merged on its own path (§3) and passed as `add(name, entry)`, in sorted name order. A file
+// whose merged document is not an object is skipped (a JSON error in one layer is logged by LoadMergedJson; a
+// `null` document is a deletion, §3.2), as is one with a JSON error inside it, logged against `what`. Returns how
+// many files `add` accepted.
+size_t ForEachRegistryFile(const std::string& dir, const char* what,
+                           const std::function<bool(const std::string& name, const Json& entry)>& add);
+
 // Keys of a keyed/positional list in engine order: "$order" first (those that exist, each once),
 // then the remaining keys with integer keys ascending numerically before non-integer keys
 // lexically. Keys beginning with "$" are reserved (§2) and never returned.

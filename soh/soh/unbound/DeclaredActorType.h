@@ -1,6 +1,6 @@
 #pragma once
-// SOH [Unbound] A custom actor type declared in data (unbound/actors.json). ActorRegistry.cpp reads the JSON into
-// this struct; the driver (DeclaredActor.cpp) sees only the struct. Design: unbound-docs/actors.md.
+// SOH [Unbound] A custom actor type declared in data (unbound/actors/<name>.json). ActorRegistry.cpp reads the JSON
+// into this struct; the driver (DeclaredActor.cpp) sees only the struct. Design: unbound-docs/actors.md.
 #include <libultraship/libultra.h>
 #include "z64math.h"
 

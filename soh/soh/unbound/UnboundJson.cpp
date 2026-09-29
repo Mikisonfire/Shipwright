@@ -10,6 +10,7 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
+#include <string_view>
 
 namespace SOH::Unbound {
 
@@ -90,6 +91,44 @@ size_t ForEachRegistryEntry(const std::string& path, const char* what,
         } catch (const nlohmann::json::exception& e) {
             SPDLOG_ERROR("[Unbound] {}: {} '{}': {}", path, what, key, e.what());
         }
+    }
+    return accepted;
+}
+
+static constexpr std::string_view kRegistryFileSuffix = ".json";
+
+// Every mounted path under `dir` ending in ".json", each once, sorted.
+static std::vector<std::string> ListRegistryFiles(const std::string& dir) {
+    std::string mask = dir + "*" + std::string(kRegistryFileSuffix);
+    auto listed = Ship::Context::GetInstance()->GetResourceManager()->GetArchiveManager()->ListFiles(mask);
+    std::vector<std::string> paths(listed->begin(), listed->end());
+    std::sort(paths.begin(), paths.end());
+    paths.erase(std::unique(paths.begin(), paths.end()), paths.end());
+    return paths;
+}
+
+// "unbound/actors/mymod/old_man.json" under "unbound/actors/" -> "mymod/old_man".
+static std::string RegistryName(const std::string& dir, const std::string& path) {
+    return path.substr(dir.size(), path.size() - dir.size() - kRegistryFileSuffix.size());
+}
+
+size_t ForEachRegistryFile(const std::string& dir, const char* what,
+                           const std::function<bool(const std::string& name, const Json& entry)>& add) {
+    size_t accepted = 0;
+    for (const auto& path : ListRegistryFiles(dir)) {
+        Json entry = LoadMergedJson(path);
+        if (entry.is_null()) {
+            continue;
+        }
+        if (!entry.is_object()) {
+            SPDLOG_ERROR("[Unbound] {}: not a JSON object, so no {}; skipped", path, what);
+            continue;
+        }
+        try {
+            if (add(RegistryName(dir, path), entry)) {
+                accepted++;
+            }
+        } catch (const nlohmann::json::exception& e) { SPDLOG_ERROR("[Unbound] {}: {}", path, e.what()); }
     }
     return accepted;
 }

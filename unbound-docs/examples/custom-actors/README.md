@@ -1,7 +1,9 @@
 # Example: custom actor types
 
-Declares seventeen actor types in `unbound/actors.json`, eleven that register (four of them fail to
-spawn, and two turn off their head tracking, on purpose) and six that are rejected, and places them
+Declares nineteen actor types, one file each under `unbound/actors/` (the path names the type:
+`unbound/actors/example/carpenter.json` is `example/carpenter`): eleven that register (four of them
+fail to spawn, and two turn off their head tracking, on purpose), six that are rejected and two
+files that are not a type at all, and places them
 by name in Hyrule Field (`spot00`, room 0, setups 0–2: child day and night, adult day) just outside
 the castle drawbridge, using only vanilla assets by path. It is the test fixture for
 [`actors.md`](../../actors.md).
@@ -30,10 +32,11 @@ them.
 | `104` | `example/talking_pot` | — | `params` as an object (reserved for named arguments): the placement is skipped |
 | `105` | `-5` | — | a negative number, which names no actor: the placement is skipped |
 
-Four entries are never placed: a type keyed `En_Kanban` (rejected, the name is a vanilla actor's),
+Six files are never placed: `unbound/actors/En_Kanban.json` (rejected, the name is a vanilla actor's),
 `example/look_on_static` (rejected, `look` needs a skeleton), `example/zero_scale` (rejected, a
 scale must be positive) and `example/short_look_axis` (registers; its two-number `nodAxis` turns
-head tracking off, with an error).
+head tracking off, with an error), `example/not_an_object` (a JSON array: skipped) and
+`example/broken_json` (not valid JSON: skipped).
 
 The messages are `0xA001`–`0xA003` in `text/eng/messages.json`.
 
@@ -43,12 +46,14 @@ Package with any zip tool, keeping the paths, and drop the result in SoH's `mods
 
 ## Expected
 
-- The log registers eleven types from `0x1000` (in key order, interleaved with any other mounted
+- The log registers eleven types from `0x1000` (in name order, interleaved with any other mounted
   mod's types) and rejects six: `En_Kanban` ("already names an actor"), `look_on_static` ("needs
   a skeleton"), `no_animation` ("needs an animation"), `zero_scale` ("must be a positive
   number"), and `uses_a_later_key` and `later_model_key` ("not a key this build knows"). It logs
   one error each for `parallel_look_axes` ("are parallel") and `short_look_axis` ("not three
-  numbers of nonzero length"), which still register. When the field loads, placements `93`–`95`
+  numbers of nonzero length"), which still register. `example/not_an_object.json` logs "not a JSON
+  object" and `example/broken_json.json` "invalid JSON in one layer", and neither stops any
+  other type from registering. When the field loads, placements `93`–`95`
   and `102` are skipped as naming no known actor, `103` and `105` are skipped for their ids and
   `104` for its params, and `97`, `98`, `100` and `101` fail to spawn, each with one error naming
   the path it could not use ("actors of this type do not spawn"), logged the first time the type

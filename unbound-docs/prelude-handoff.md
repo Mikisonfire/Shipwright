@@ -6,6 +6,20 @@ let the user build. **The contract is [`SPEC.md`](./SPEC.md)**; every entry belo
 section that defines it, and when this page and SPEC disagree, SPEC wins. Everything in the code
 is tagged `SOH [Unbound]`.
 
+## 2026-09-28 — custom actor types: one file per type, `unbound/actors/<name>.json`
+
+Asked for by Prelude, which keeps each actor as its own asset and had to rewrite, and track its
+share of, one shared `unbound/actors.json`. The single document was never released, so it is
+simply gone: SoH no longer reads it. Branch `unbound-actor-files`; not merged, not in a release.
+Everything inside a type (the keys, defaults and rejections below) is unchanged.
+
+| Change | SPEC | Prelude must |
+|---|---|---|
+| Each type is its own document: every `unbound/actors/**.json` declares one type, and the path between `unbound/actors/` and `.json` is its name: `unbound/actors/mymod/old_man.json` declares `mymod/old_man`. The document is what used to be the entry's value (no wrapping key). `unbound/actors.json` is not read. | §7.2 | Write one file per type; drop the shared-document writer and its bookkeeping. |
+| Name rules are unchanged: not an integer string, not a name ActorDB already knows (`unbound/actors/En_Kanban.json` is rejected). A folder is **recommended, not required**: a name like `old_man` works. | §7.2 | Put a project's types under `unbound/actors/<project>/` once projects have a name; until then a bare name is valid. Placements use the full name, folder included. |
+| Each path is layer-merged on its own (§3): a higher mod's file at the same path patches the type key by key, and a file that is `null` removes it. A broken or non-object file loses only its own type. | §7.2, §3 | Nothing, unless Prelude wants to offer patching another mod's type. |
+| Types are numbered from 0x1000 in byte order of their names; `$order` no longer applies. | §7.2 | Nothing: the number is never written. |
+
 ## 2026-09-26 — custom actor `look` axes: `turnAxis` and `nodAxis`
 
 Asked for by Prelude for rigs imported from `.glb` (MM Skull Kid / `Dm_Stk`, whose head X axis
@@ -28,7 +42,7 @@ export; **not in a release yet**. Design and engine notes:
 
 | Change | SPEC | Prelude must |
 |---|---|---|
-| New layer-merged registry `unbound/actors.json`, keyed by type name (namespace it: `mymod/old_man`). The game numbers each type from 0x1000 in registry order; the number is never written. A key that is an integer string or an existing actor name is rejected. | §7.2 | Author entries; offer registered types in the actor palette by name. Never write a custom type's number. |
+| ~~New layer-merged registry `unbound/actors.json`, keyed by type name~~ — superseded 2026-09-28: one `unbound/actors/<name>.json` per type. The game numbers each type from 0x1000; the number is never written. A name that is an integer string or an existing actor name is rejected. | §7.2 | Author types; offer registered types in the actor palette by name. Never write a custom type's number. |
 | A room actor's `id` may be a **name**: a registered type, or any name ActorDB knows (`En_Kanban`, a fork's C actor). Unknown names are skipped with an error. Names only in room `actors`; spawns and transition actors keep integers. An integer `id` must be 0–`0xFFF`: anything else is skipped. | §4.3 | Write `"id": "<name>"` for custom types; this replaces typing raw ids for fork actors too. A vanilla actor placed by name still needs its object in the room's `objects`, as by number. |
 | `model`: exactly one of `skeleton` + required `animation`, or `displayList`; `frame` to hold a pose, `speed`, `scale` (must be positive), `yOffset`, `translucent`, `shadow`, `cullRadius`, `drawDistance`, `segments` 8–12, `hideLimbs`. Optional `collision` (cylinder), `talk` (`message`, `range`), `look` (`limb`, `pivot`, `range`). A declared type needs no object in the room: assets load by path. | §7.2 | Preview the skeleton in the chosen frame, or the display list. Let the user pick `look.limb` and `hideLimbs` from the skeleton's limb list, numbered from **1 at the root** in skeleton order; limb names can mislead (Ganondorf's "Jewel" limb is his head root). Set `cullRadius` to the model's reach from its origin for anything larger than an NPC. |
 | A skeleton must be normal or flex with standard or LOD limbs, and its animation must have frames and cover every limb; otherwise no actor of the type spawns. | §7.2 | Validate at export, so the user is not left with an invisible type. |

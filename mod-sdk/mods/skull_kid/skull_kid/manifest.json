@@ -1,0 +1,12 @@
+{
+    "name": "skull_kid",
+    "author": "Skijer",
+    "version": "0.1",
+    "description": "Skull Mask: turns Link into Majora's Mask's Skull Kid. He floats, hovers while A is held in the air, walks with Skull Kid's own walk, and plays his flute on B. No sword or shield.",
+    "requires": [
+        "objects/object_stk/gSkullKidSkel",
+        "objects/object_stk/gSkullKidWalkAnim",
+        "objects/object_stk2/gSkullKidFloatingArmsCrossedAnim",
+        "objects/object_stk2/gSkullKidPlayFluteAnim"
+    ]
+}

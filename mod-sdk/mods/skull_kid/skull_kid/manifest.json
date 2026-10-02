@@ -1,0 +1,28 @@
+{
+    "name": "skull_kid",
+    "author": "Skijer",
+    "version": "0.9",
+    "description": "Majora's Mask: turns Link into Majora's Mask's Skull Kid, wearing the mask. He floats, hovers while A is held in the air, mirrors Link's roll, hops and flinches with his own poses, and fights with a Hyrule Warriors-style moveset: a 7-hit weak string on B, six strong attacks on R, and a special on R+B. No sword or shield.",
+    "requires": [
+        "objects/object_stk/gSkullKidSkel",
+        "objects/object_stk/gSkullKidWalkAnim",
+        "objects/object_stk2/gSkullKidFloatingArmsCrossedAnim",
+        "objects/object_stk/gSkullKidMajorasMask1DL",
+        "objects/object_stk/gSkullKidMajorasMask2DL",
+        "objects/object_stk/gSkullKidMajorasMaskEyesDL",
+        "objects/object_stk/gSkullKidSpankAnim",
+        "objects/object_stk/gSkullKidHipShakeAndJumpAnim",
+        "objects/object_stk/gSkullKidCallDownMoonStartAnim",
+        "objects/object_stk2/gSkullKidCartwheelAnim",
+        "objects/object_stk2/gSkullKidKickOverLinkAnim",
+        "objects/object_stk2/gSkullKidSmackFairyStartAnim",
+        "objects/object_stk2/gSkullKidDeflectAttackAnim",
+        "objects/object_stk2/gSkullKidCurseStartAnim",
+        "objects/object_stk2/gSkullKidCurseLoopAnim",
+        "objects/object_stk2/gSkullKidHoldHeadAndScreamStartAnim",
+        "objects/object_stk2/gSkullKidFloatingTurnAroundAnim",
+        "objects/object_stk2/gSkullKidHitByBubbleAnim",
+        "objects/object_stk/gSkullKidNormalHeadDL",
+        "objects/object_stk/gSkullKidNormalEyesDL"
+    ]
+}

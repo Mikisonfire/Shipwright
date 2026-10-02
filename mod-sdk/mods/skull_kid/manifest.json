@@ -1,0 +1,28 @@
+{
+    "name": "skull_kid",
+    "author": "Skijer",
+    "version": "1.3",
+    "description": "Majora's Mask: turns Link into Majora's Mask's Skull Kid, wearing the mask. He floats, hovers while A is held in the air, mirrors Link's roll, hops and flinches with his own poses, and fights with a Majora's Mask-style moveset: a 5-hit trickster combo on B, Moon Fall, Curse Bubble and Fairy Strike on R, and Majora's Fury on R+B, with Tatl and Tael at his side. Uses Skull Kid's own voice for grunts and cries. No sword or shield.",
+    "requires": [
+        "objects/object_stk/gSkullKidSkel",
+        "objects/object_stk/gSkullKidWalkAnim",
+        "objects/object_stk2/gSkullKidFloatingArmsCrossedAnim",
+        "objects/object_stk/gSkullKidMajorasMask1DL",
+        "objects/object_stk/gSkullKidMajorasMask2DL",
+        "objects/object_stk/gSkullKidMajorasMaskEyesDL",
+        "objects/object_stk/gSkullKidSpankAnim",
+        "objects/object_stk/gSkullKidHipShakeAndJumpAnim",
+        "objects/object_stk/gSkullKidCallDownMoonStartAnim",
+        "objects/object_stk2/gSkullKidCartwheelAnim",
+        "objects/object_stk2/gSkullKidKickOverLinkAnim",
+        "objects/object_stk2/gSkullKidSmackFairyStartAnim",
+        "objects/object_stk2/gSkullKidDeflectAttackAnim",
+        "objects/object_stk2/gSkullKidCurseStartAnim",
+        "objects/object_stk2/gSkullKidCurseLoopAnim",
+        "objects/object_stk2/gSkullKidHoldHeadAndScreamStartAnim",
+        "objects/object_stk2/gSkullKidFloatingTurnAroundAnim",
+        "objects/object_stk2/gSkullKidHitByBubbleAnim",
+        "objects/object_stk/gSkullKidNormalHeadDL",
+        "objects/object_stk/gSkullKidNormalEyesDL"
+    ]
+}
